@@ -1,4 +1,6 @@
 # comnet_proj
-This Will Work
+Some notes Anthony took down on how we're going to do this.
 
-![alt tag](http://badasspetz.com/images/acme-rocket-large-dog-costumes.jpg)
+One thing I didn't include in the diagram is the ACK messages for processing.
+
+![alt tag](/diagrams/diagram.jpg)
