@@ -17,12 +17,14 @@ routing_entry * adjust_size(routing_entry *array, int old_size, int new_size){
     return array;
 }
 
-Topology::Topology(){
+Topology::Topology() : _timer(this) {
     first_entry = true;
     updated_entry = false;
 
     entry_num = 0;
     routing_entry *routing_table = new routing_entry[0];
+
+    seq = 0;
 }
 
 Topology::~Topology(){
@@ -30,6 +32,8 @@ Topology::~Topology(){
 }
 
 int Topology::initialize(ErrorHandler *errh){
+    _timer.initialize(this);
+    _timer.schedule_now();
     return 0;
 }
 
@@ -111,6 +115,30 @@ void Topology::push(int port, Packet *packet) {
     click_chatter("Received ack %u from %u", header->sequence, header->source);
     */
     packet->kill();
+}
+
+void Topology::run_timer(Timer *timer) {
+    seq++;
+    assert(timer == &_timer);
+
+    // make click packet with size of hello packet format
+    WritablePacket *packet = Packet::make(0,0,sizeof(struct PacketHELLO), 0);
+
+    // set data to 0?
+    memset(packet->data(),0,packet->length());
+
+    // make format point to data part of click packet where HELLO packet is stored
+    struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
+
+    // set type
+    format->type = 0;
+    // set source 0 temp
+    format->source = seq%6;
+    // set sequence
+    format->sequence = seq;
+
+    output(0).push(packet);
+    _timer.reschedule_after_sec(5);
 }
 
 CLICK_ENDDECLS

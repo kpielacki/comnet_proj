@@ -15,16 +15,19 @@ class Topology : public Element {
         const char *processing() const { return PUSH; }
         int configure(Vector<String> &conf, ErrorHandler *errh);
 
+        void run_timer(Timer*);
         void push(int port, Packet *packet);
         int initialize(ErrorHandler*);
 
         int entry_num;
 
     private:
+        Timer _timer;
         bool first_entry;
         bool updated_entry;
         int new_index;
         routing_entry *routing_table;
+        int seq;
 };
 
 CLICK_ENDDECLS
