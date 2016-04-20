@@ -62,7 +62,7 @@ void Topology::push(int port, Packet *packet) {
             click_chatter("Entering first entry");
             routing_table = adjust_size(routing_table, entry_num, entry_num);
             routing_table[0].destination = hello_packet->source;
-            routing_table[0].cost = 8;
+            routing_table[0].cost = 1;
 
             first_entry = false;
         }
