@@ -2,7 +2,7 @@
 #define CLICK_RoutingKN_HH
 #include <click/element.hh>
 #include <click/timer.hh>
-#include "routing_entry.hh"
+#include "proj_packets.hh"
 
 
 class TableKN {
@@ -12,7 +12,8 @@ class TableKN {
 
         void hello_update(uint16_t h_source);
         void adjust_size(int new_size);
-        void update_entry(int entry, uint16_t dest, uint8_t cost);
+        void update_entry(int entry, uint16_t dest, uint8_t cost, uint16_t next_hop);
+        void add_new_entry(uint16_t dest, uint8_t cost, uint16_t next_hop);
 
         int get_entry_num();
         routing_entry *get_all_entries();

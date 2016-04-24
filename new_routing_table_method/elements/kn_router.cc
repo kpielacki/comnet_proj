@@ -4,7 +4,7 @@
 #include <click/timer.hh>
 #include <click/packet.hh>
 #include "kn_router.hh"
-#include "proj_packets.hh"
+//#include "proj_packets.hh"
 
 
 
@@ -39,9 +39,27 @@ routing_entry *TableKN::get_all_entries(){
     return routing_table;
 }
 
-void TableKN::update_entry(int entry, uint16_t dest, uint8_t cost){
+void TableKN::update_entry(int entry, uint16_t dest, uint8_t cost, uint16_t next_hop){
     routing_table[entry].destination = dest;
     routing_table[entry].cost = cost;
+    routing_table[entry].next_hop = next_hop;
+}
+
+void TableKN::add_new_entry(uint16_t dest, uint8_t cost, uint16_t next_hop){
+    if ( first_entry ){
+        adjust_size(entry_num);
+        routing_table[0].destination = dest;
+        routing_table[0].cost = cost;
+        routing_table[0].next_hop = next_hop;
+
+        first_entry = false;
+    }
+    else{
+        adjust_size(entry_num+1);
+        routing_table[entry_num].destination = dest;
+        routing_table[entry_num].cost = cost;
+        routing_table[entry_num].next_hop = next_hop;
+    }
 }
 
 void TableKN::print_table(){
@@ -49,7 +67,7 @@ void TableKN::print_table(){
 
     click_chatter("\n-----Routing Table-----");
     for( entry=0; entry <= entry_num; entry++ ){
-        click_chatter("Entry: %u, Source: %u, Cost: %u", entry, routing_table[entry].destination, routing_table[entry].cost);
+        click_chatter("Entry: %u, Destination: %u, Cost: %u, Next Hop: %u", entry, routing_table[entry].destination, routing_table[entry].cost, routing_table[entry].next_hop);
     }
     click_chatter("\n");
 }
@@ -59,6 +77,7 @@ void TableKN::hello_update(uint16_t h_source){
         adjust_size(entry_num);
         routing_table[0].destination = h_source;
         routing_table[0].cost = 1;
+        routing_table[0].next_hop = h_source;
 
         first_entry = false;
     }
@@ -80,6 +99,7 @@ void TableKN::hello_update(uint16_t h_source){
             adjust_size(entry_num+1);
             routing_table[entry_num].destination = h_source;
             routing_table[entry_num].cost = 1;
+            routing_table[entry].next_hop = h_source;
         }
     }
 }
@@ -190,32 +210,44 @@ void RoutingKN::push(int port, Packet *packet) {
     else {
         click_chatter("Received packet Type: %u, Source: %u, Sequence: %u, Length: %u, Payload: %u", update_packet->type, update_packet->source, update_packet->sequence, update_packet->length, update_packet->payload);
 
-        routing_entry* pay_read = new routing_entry[update_packet->length];
-        memcpy( pay_read, &update_packet->payload, update_packet->length * sizeof(routing_entry) );
+        //routing_entry* pay_read = new routing_entry[update_packet->length];
+        //memcpy( pay_read, &update_packet->payload, update_packet->length * sizeof(routing_entry) );
 
         int r_entry;
-        for ( r_entry = 0; r_entry <= update_packet->length; r_entry++ ) {
-            click_chatter("Entry: %u, Dest: %u, Cost: %u", r_entry, pay_read[r_entry].destination, pay_read[r_entry].cost);            
-        }
-        
-        click_chatter("Num of Entries: %u", r_table.get_entry_num());
-        
+        // interate through all entries in received routing table
+        for ( r_entry = 0; r_entry < update_packet->length; r_entry++ ) {
+            click_chatter("Checking Received Entry: %u, Dest: %u, Cost: %u", r_entry, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost);            
+            //click_chatter("\n-----UPDATE ROUTING TABLE-----");
+            
+            // interate through all entries in own routing table
+            int entry;
+            bool found_entry = false;
+            routing_entry* retrieved_table = r_table.get_all_entries();
+            for( entry=0; entry <= r_table.get_entry_num(); entry++ ){
+                click_chatter("\tChecking Own Entry: %u, Destiation: %u, Cost: %u, Next Hop: %u", entry, retrieved_table[entry].destination, retrieved_table[entry].cost, retrieved_table[entry].next_hop);
 
-        int entry;
-        routing_entry* retrieved_table = r_table.get_all_entries();
-        click_chatter("\n-----UPDATE ROUTING TABLE-----");
-        for( entry=0; entry <= r_table.get_entry_num(); entry++ ){
-            click_chatter("Entry: %u, Source: %u, Cost: %u", entry, retrieved_table[entry].destination, retrieved_table[entry].cost);
-
-            if ( retrieved_table[entry].destination ) {
-                if ( retrieved_table[entry].cost < retrieved_table[entry].cost ) {
-                    r_table.update_entry(entry, update_packet->source, 69);
-                }
-                else if ( retrieved_table[entry].cost == retrieved_table[entry].cost ) {
-                    // add entry
+                if ( update_packet->payload[r_entry].destination == retrieved_table[entry].destination ) {
+                    // interate through all current entries
+                    click_chatter("\tFound matching entry");
+                    if ( update_packet->payload[r_entry].cost + 1 < retrieved_table[entry].cost ) {
+                        // replace entry with lower cost route
+                        click_chatter("\t\tReplacing entry");
+                        r_table.update_entry(entry, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
+                    }
+                    else if ( update_packet->payload[r_entry].cost + 1 == retrieved_table[entry].cost) {
+                        // add new route with equal hop count
+                        click_chatter("\t\tAdding Equal Entry");
+                    }
+                    found_entry = true;
                 }
             }
-        }
+
+            // add entry to routing table if entry was not found
+            if ( !found_entry ){
+                click_chatter("\t\tAdding Brand New Entry");
+                r_table.add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
+            }
+        }        
 
         // if ( !updated_entry ){
         //     adjust_size(entry_num+1);
@@ -284,11 +316,11 @@ void TESTpacketGen::run_timer(Timer *timer) {
     // set type
     format->type = 2;
     // set source 0 temp
-    format->source = seq%4;
+    format->source = seq%2;
     // set sequence
     format->sequence = seq;
     // set sequence
-    format->length = 2;
+    format->length = 3;
     // payload
 
     export_table = new routing_entry[2];
@@ -296,13 +328,16 @@ void TESTpacketGen::run_timer(Timer *timer) {
     export_table[0].cost = 10;
     export_table[1].destination = 69;
     export_table[1].cost =  10;
-    export_table[2].destination = 7;
+    export_table[2].destination = 5;
     export_table[2].cost = 10;
 
-
-    unsigned short ex[2];
-    memcpy(ex, &export_table, sizeof(unsigned short));
-    format->payload = *ex;
+    //routing_entry ex = new routing_entry[100];
+    //memcpy(ex, &export_table, sizeof(routing_entry[2]));
+    //format->payload = *export_table;
+    //format->payload = *export_table;
+    
+    // copy (largest index + 1) * size
+    memcpy(format->payload, export_table, format->length*sizeof(routing_entry));
 
     output(0).push(packet);
     _timer.reschedule_after_sec(1);

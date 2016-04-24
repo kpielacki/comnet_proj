@@ -1,3 +1,9 @@
+struct routing_entry{
+    uint16_t destination;
+    uint8_t cost;
+    uint16_t next_hop;
+};
+
 struct PacketHELLO{
      uint8_t type;
 	 uint16_t source;
@@ -9,7 +15,7 @@ struct PacketUPDATE{
 	 uint16_t source;
 	 uint8_t sequence;
 	 uint16_t length;
-     unsigned short payload;
+     routing_entry payload[];
 };
 
 struct PacketACK{
