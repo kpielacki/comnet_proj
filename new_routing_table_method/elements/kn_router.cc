@@ -11,7 +11,7 @@
 //--------------ROUTING TABLE CLASS--------------
 TableKN::TableKN(){
     first_entry = true;
-    routing_entry *routing_table = new routing_entry[0];
+    //static routing_entry *routing_table = new routing_entry[0];
 }
 
 TableKN::~TableKN(){
@@ -20,13 +20,7 @@ TableKN::~TableKN(){
 
 void TableKN::adjust_size(int new_size){
     routing_entry* newArr = new routing_entry[new_size];
-
-    click_chatter("afdsdf");
-    click_chatter("%u", new_size);
-
     memcpy( newArr, routing_table, new_size * sizeof(routing_entry) );
-    click_chatter("afdsdf2");
-
 
     delete [] routing_table;
     routing_table = newArr;
@@ -35,8 +29,19 @@ void TableKN::adjust_size(int new_size){
 
 int TableKN::entry_num = 0;
 
+routing_entry * TableKN::routing_table = new routing_entry[0];
+
 int TableKN::get_entry_num(){
     return entry_num;
+}
+
+routing_entry *TableKN::get_all_entries(){
+    return routing_table;
+}
+
+void TableKN::update_entry(int entry, uint16_t dest, uint8_t cost){
+    routing_table[entry].destination = dest;
+    routing_table[entry].cost = cost;
 }
 
 void TableKN::print_table(){
@@ -72,10 +77,7 @@ void TableKN::hello_update(uint16_t h_source){
         }
 
         if ( !updated_entry ){
-
-            click_chatter("up, entry_num = %u", entry_num);
             adjust_size(entry_num+1);
-            click_chatter("up after, entry_num = %u", entry_num);
             routing_table[entry_num].destination = h_source;
             routing_table[entry_num].cost = 1;
         }
@@ -187,7 +189,39 @@ void RoutingKN::push(int port, Packet *packet) {
     }
     else {
         click_chatter("Received packet Type: %u, Source: %u, Sequence: %u, Length: %u, Payload: %u", update_packet->type, update_packet->source, update_packet->sequence, update_packet->length, update_packet->payload);
-        //click_chatter("Routing Table: %u", Topology().get_entry_num());
+
+        routing_entry* pay_read = new routing_entry[update_packet->length];
+        memcpy( pay_read, &update_packet->payload, update_packet->length * sizeof(routing_entry) );
+
+        int r_entry;
+        for ( r_entry = 0; r_entry <= update_packet->length; r_entry++ ) {
+            click_chatter("Entry: %u, Dest: %u, Cost: %u", r_entry, pay_read[r_entry].destination, pay_read[r_entry].cost);            
+        }
+        
+        click_chatter("Num of Entries: %u", r_table.get_entry_num());
+        
+
+        int entry;
+        routing_entry* retrieved_table = r_table.get_all_entries();
+        click_chatter("\n-----UPDATE ROUTING TABLE-----");
+        for( entry=0; entry <= r_table.get_entry_num(); entry++ ){
+            click_chatter("Entry: %u, Source: %u, Cost: %u", entry, retrieved_table[entry].destination, retrieved_table[entry].cost);
+
+            if ( retrieved_table[entry].destination ) {
+                if ( retrieved_table[entry].cost < retrieved_table[entry].cost ) {
+                    r_table.update_entry(entry, update_packet->source, 69);
+                }
+                else if ( retrieved_table[entry].cost == retrieved_table[entry].cost ) {
+                    // add entry
+                }
+            }
+        }
+
+        // if ( !updated_entry ){
+        //     adjust_size(entry_num+1);
+        //     routing_table[entry_num].destination = h_source;
+        //     routing_table[entry_num].cost = 1;
+        // }
 
     packet->kill();
     }
@@ -216,3 +250,63 @@ void RoutingKN::run_timer(Timer *timer) {
 
 CLICK_ENDDECLS
 EXPORT_ELEMENT(RoutingKN)
+
+
+CLICK_DECLS
+
+TESTpacketGen::TESTpacketGen() : _timer(this) {
+    seq = 0;
+}
+
+TESTpacketGen::~TESTpacketGen(){
+
+}
+
+int TESTpacketGen::initialize(ErrorHandler *errh){
+    _timer.initialize(this);
+    _timer.schedule_now();
+    return 0;
+}
+
+void TESTpacketGen::run_timer(Timer *timer) {
+    seq++;
+    assert(timer == &_timer);
+
+    // make click packet with size of UPDATE packet format
+    WritablePacket *packet = Packet::make(0,0,sizeof(struct PacketUPDATE), 0);
+
+    // set data to 0?
+    memset(packet->data(),0,packet->length());
+
+    // make format point to data part of click packet where UPDATE packet is stored
+    struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
+
+    // set type
+    format->type = 2;
+    // set source 0 temp
+    format->source = seq%4;
+    // set sequence
+    format->sequence = seq;
+    // set sequence
+    format->length = 2;
+    // payload
+
+    export_table = new routing_entry[2];
+    export_table[0].destination = 12;
+    export_table[0].cost = 10;
+    export_table[1].destination = 69;
+    export_table[1].cost =  10;
+    export_table[2].destination = 7;
+    export_table[2].cost = 10;
+
+
+    unsigned short ex[2];
+    memcpy(ex, &export_table, sizeof(unsigned short));
+    format->payload = *ex;
+
+    output(0).push(packet);
+    _timer.reschedule_after_sec(1);
+}
+
+CLICK_ENDDECLS
+EXPORT_ELEMENT(TESTpacketGen)

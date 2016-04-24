@@ -9,7 +9,7 @@ struct PacketUPDATE{
 	 uint16_t source;
 	 uint8_t sequence;
 	 uint16_t length;
-     uint64_t payload;
+     unsigned short payload;
 };
 
 struct PacketACK{
