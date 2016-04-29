@@ -20,16 +20,21 @@ TableKN::~TableKN(){
 
 void TableKN::adjust_size(int new_size){
 
-    click_chatter("New Size: %u, EntryNum: %u", new_size, entry_num);
-    routing_entry* newArr = new routing_entry[new_size];
+    routing_entry* newArr = new routing_entry[1+new_size];
+
     memcpy( newArr, routing_table, new_size * sizeof(routing_entry) );
 
-    click_chatter("Fuck");
-    delete [] routing_table;
-    click_chatter("This");
+    if ( routing_table != NULL ) {
+        delete [] routing_table;
+    }
+
     routing_table = newArr;
     entry_num = new_size;
-    click_chatter("Shit");
+    
+    // if ( newArr != NULL ) {
+    //     delete [] newArr;
+    // }
+
 }
 
 int TableKN::entry_num = 0;
@@ -60,9 +65,7 @@ void TableKN::add_new_entry(uint16_t dest, uint8_t cost, uint16_t next_hop){
         first_entry = false;
     }
     else{
-        click_chatter("entry num adj: %u", entry_num+1);
         adjust_size(entry_num+1);
-        click_chatter("test2");
         routing_table[entry_num].destination = dest;
         routing_table[entry_num].cost = cost;
         routing_table[entry_num].next_hop = next_hop;
@@ -156,27 +159,27 @@ void Topology::push(int port, Packet *packet) {
 }
 
 void Topology::run_timer(Timer *timer) {
-    seq++;
-    assert(timer == &_timer);
+    // seq++;
+    // assert(timer == &_timer);
 
-    // make click packet with size of hello packet format
-    WritablePacket *packet = Packet::make(0,0,sizeof(struct PacketHELLO), 0);
+    // // make click packet with size of hello packet format
+    // WritablePacket *packet = Packet::make(0,0,sizeof(struct PacketHELLO), 0);
 
-    // set data to 0?
-    memset(packet->data(),0,packet->length());
+    // // set data to 0?
+    // memset(packet->data(),0,packet->length());
 
-    // make format point to data part of click packet where HELLO packet is stored
-    struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
+    // // make format point to data part of click packet where HELLO packet is stored
+    // struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
 
-    // set type
-    format->type = 1;
-    // set source 0 temp
-    format->source = seq%6;
-    // set sequence
-    format->sequence = seq;
+    // // set type
+    // format->type = 1;
+    // // set source 0 temp
+    // format->source = seq%6;
+    // // set sequence
+    // format->sequence = seq;
 
-    output(0).push(packet);
-    _timer.reschedule_after_sec(5);
+    // output(0).push(packet);
+    // _timer.reschedule_after_sec(5);
 }
 
 //--------------ROUTING--------------
@@ -223,9 +226,13 @@ void RoutingKN::push(int port, Packet *packet) {
         int r_entry;
         // interate through all entries in received routing table
         for ( r_entry = 0; r_entry < update_packet->length; r_entry++ ) {
-            click_chatter("Checking Received Entry: %u, Dest: %u, Cost: %u", r_entry, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost);            
+            click_chatter("Checking Received Entry: %u, Source: %u, Dest: %u, Cost: %u", r_entry, update_packet->source, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost);            
             //click_chatter("\n-----UPDATE ROUTING TABLE-----");
             
+            // discard incoming entries if already in table
+            bool same_entry;
+            same_entry = false;
+
             // array to hold entry number of matching destinations in routing table
             int matching_dest_entries[2];  // there should never be more than 3 of the same entry in a table            
             int equal_hop_count;
@@ -248,25 +255,28 @@ void RoutingKN::push(int port, Packet *packet) {
 
                 if ( update_packet->payload[r_entry].destination == retrieved_table[entry].destination ) {
                     // interate through all current entries
-                    click_chatter("\tFound matching entry");
                     if ( update_packet->payload[r_entry].cost + 1 < retrieved_table[entry].cost ) {
+                        click_chatter("\t Replacing with Better Entry");
                         matching_dest_entries[better_hop_count] = entry;
                         better_hop_count++;
+                        found_entry = true;
                     }
-                    else if ( update_packet->payload[r_entry].cost + 1 == retrieved_table[entry].cost and retrieved_table[entry].next_hop != update_packet->source) {
+                    else if ( update_packet->payload[r_entry].cost + 1 == retrieved_table[entry].cost ) {
                         matching_dest_entries[equal_hop_count] = entry;
                         equal_hop_count++;
+                        if ( update_packet->source == retrieved_table[entry].next_hop ) {
+                            click_chatter("\t\tFound Same Entry: %u", equal_hop_count);
+                            same_entry = true;
+                            found_entry = true;
+                        }
                     }
-                    found_entry = true;
                 }
             }
 
             // add equal entry if room available
-            if ( equal_hop_count > 0 and equal_hop_count < 3 ) {
+            if ( !same_entry and equal_hop_count > 0 and equal_hop_count < 3 ) {
                 click_chatter("\t\tAdding New Route Entry");
-                click_chatter("Entry Count: %u", r_table.get_entry_num());
                 r_table.add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
-                click_chatter("\t\tFinished");
             }
             else if ( better_hop_count > 0 ) {
                 r_table.update_entry(matching_dest_entries[0], update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
@@ -278,33 +288,37 @@ void RoutingKN::push(int port, Packet *packet) {
                 }
             }
             // add entry to routing table if entry was not found
+            click_chatter("\t\tpls");
             if ( !found_entry ){
                 click_chatter("\t\tAdding Brand New Entry");
                 r_table.add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
+                found_entry = false;
             }
         }
+
+    r_table.print_table();
     packet->kill();
     }
 }
 
 void RoutingKN::run_timer(Timer *timer) {
-    seq++;
-    assert(timer == &_timer);
+    // seq++;
+    // assert(timer == &_timer);
 
-    WritablePacket *packet = Packet::make(0,0,sizeof(struct PacketUPDATE), 0);
+    // WritablePacket *packet = Packet::make(0,0,sizeof(struct PacketUPDATE), 0);
 
-    memset(packet->data(),0,packet->length());
+    // memset(packet->data(),0,packet->length());
 
-    struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
+    // struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
 
-    // set type
-    format->type = 2;
-    // set source 0 temp
-    format->source = 666;
-    // set sequence
-    format->sequence = seq;
+    // // set type
+    // format->type = 2;
+    // // set source 0 temp
+    // format->source = 666;
+    // // set sequence
+    // format->sequence = seq;
 
-    output(0).push(packet);
+    // output(0).push(packet);
     _timer.reschedule_after_sec(5);
 }
 
@@ -368,6 +382,8 @@ void TESTpacketGen::run_timer(Timer *timer) {
     memcpy(format->payload, export_table, format->length*sizeof(routing_entry));
 
     output(0).push(packet);
+
+    delete [] export_table;
     _timer.reschedule_after_sec(1);
 }
 
