@@ -14,6 +14,7 @@ class TableKN {
         void adjust_size(int new_size);
         void update_entry(int entry, uint16_t dest, uint8_t cost, uint16_t next_hop);
         void add_new_entry(uint16_t dest, uint8_t cost, uint16_t next_hop);
+        void remove_table_entries(int remove_entries[], int remove_cnt);
 
         int get_entry_num();
         routing_entry *get_all_entries();

@@ -30,7 +30,7 @@ void TableKN::adjust_size(int new_size){
 
     routing_table = newArr;
     entry_num = new_size;
-    
+
     // if ( newArr != NULL ) {
     //     delete [] newArr;
     // }
@@ -70,6 +70,34 @@ void TableKN::add_new_entry(uint16_t dest, uint8_t cost, uint16_t next_hop){
         routing_table[entry_num].cost = cost;
         routing_table[entry_num].next_hop = next_hop;
     }
+}
+
+// pass ordered list of routing entries to remove
+void TableKN::remove_table_entries(int remove_entries[], int remove_cnt){
+    int remove_iter;
+    remove_iter = 0;
+
+    // temp
+    routing_entry* temp = new routing_entry[1+entry_num - remove_cnt];
+
+    int i;
+    for ( i = 0; i <= entry_num; i++ ){
+        if ( i==remove_entries[remove_iter] and remove_iter<remove_cnt ) {
+            remove_iter++;
+        }
+        else{
+            temp[i - remove_iter] = routing_table[i];
+        }
+    }
+
+    //memcpy( newArr, routing_table, new_size * sizeof(routing_entry) );
+
+    if ( routing_table != NULL ) {
+        delete [] routing_table;
+    }
+
+    routing_table = temp;
+    entry_num = entry_num - remove_cnt + 1;
 }
 
 void TableKN::print_table(){
@@ -226,15 +254,15 @@ void RoutingKN::push(int port, Packet *packet) {
         int r_entry;
         // interate through all entries in received routing table
         for ( r_entry = 0; r_entry < update_packet->length; r_entry++ ) {
-            click_chatter("Checking Received Entry: %u, Source: %u, Dest: %u, Cost: %u", r_entry, update_packet->source, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost);            
+            click_chatter("Checking Received Entry: %u, Source: %u, Dest: %u, Cost: %u", r_entry, update_packet->source, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost);
             //click_chatter("\n-----UPDATE ROUTING TABLE-----");
-            
+
             // discard incoming entries if already in table
             bool same_entry;
             same_entry = false;
 
             // array to hold entry number of matching destinations in routing table
-            int matching_dest_entries[2];  // there should never be more than 3 of the same entry in a table            
+            int matching_dest_entries[2];  // there should never be more than 3 of the same entry in a table
             int equal_hop_count;
             int better_hop_count;
             equal_hop_count = 0;
@@ -249,7 +277,7 @@ void RoutingKN::push(int port, Packet *packet) {
                 click_chatter("\tChecking Own Entry: %u, Destiation: %u, Cost: %u, Next Hop: %u", entry, retrieved_table[entry].destination, retrieved_table[entry].cost, retrieved_table[entry].next_hop);
 
                 // array to hold entry number of matching destinations in routing table
-                // int matching_dest_entries[2] = new int[2];  // there should never be more than 3 of the same entry in a table            
+                // int matching_dest_entries[2] = new int[2];  // there should never be more than 3 of the same entry in a table
                 equal_hop_count = 0;
                 better_hop_count = 0;
 
@@ -280,7 +308,7 @@ void RoutingKN::push(int port, Packet *packet) {
             }
             else if ( better_hop_count > 0 ) {
                 r_table.update_entry(matching_dest_entries[0], update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
-                
+
                 // remove alternative routes if exists
                 int i;
                 for ( i = 1; i <= better_hop_count; i++ ) {
@@ -288,7 +316,6 @@ void RoutingKN::push(int port, Packet *packet) {
                 }
             }
             // add entry to routing table if entry was not found
-            click_chatter("\t\tpls");
             if ( !found_entry ){
                 click_chatter("\t\tAdding Brand New Entry");
                 r_table.add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
@@ -377,7 +404,7 @@ void TESTpacketGen::run_timer(Timer *timer) {
     //memcpy(ex, &export_table, sizeof(routing_entry[2]));
     //format->payload = *export_table;
     //format->payload = *export_table;
-    
+
     // copy (largest index + 1) * size
     memcpy(format->payload, export_table, format->length*sizeof(routing_entry));
 
