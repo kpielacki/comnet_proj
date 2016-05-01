@@ -97,7 +97,7 @@ void TableKN::remove_table_entries(int remove_entries[], int remove_cnt){
     }
 
     routing_table = temp;
-    entry_num = entry_num - remove_cnt + 1;
+    entry_num = entry_num - remove_cnt;
 }
 
 void TableKN::print_table(){
@@ -254,15 +254,17 @@ void RoutingKN::push(int port, Packet *packet) {
         int r_entry;
         // interate through all entries in received routing table
         for ( r_entry = 0; r_entry < update_packet->length; r_entry++ ) {
-            click_chatter("Checking Received Entry: %u, Source: %u, Dest: %u, Cost: %u", r_entry, update_packet->source, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost);
+            click_chatter("Checking Received Entry: %u, Dest: %u, Cost: %u, Source: %u", r_entry, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost, update_packet->source);
             //click_chatter("\n-----UPDATE ROUTING TABLE-----");
 
             // discard incoming entries if already in table
             bool same_entry;
             same_entry = false;
 
-            // array to hold entry number of matching destinations in routing table
-            int matching_dest_entries[2];  // there should never be more than 3 of the same entry in a table
+            // routing table index of first encountered better entry replacement
+            int overwrite_entry;
+            // array to hold entires to remove from routing table that were alterative routes but the update packet contained a better route
+            int del_entries[1];  // there should never be more than 3 of the same entry in a table
             int equal_hop_count;
             int better_hop_count;
             equal_hop_count = 0;
@@ -271,52 +273,69 @@ void RoutingKN::push(int port, Packet *packet) {
             // interate through all entries in own routing table
             int entry;
             bool found_entry = false;
+            bool discard_entry = false;
+
             // retrieve routing table through each iteration since it will be updated each iteration
             routing_entry* retrieved_table = r_table.get_all_entries();
             for( entry=0; entry <= r_table.get_entry_num(); entry++ ){
+                found_entry = false;
                 click_chatter("\tChecking Own Entry: %u, Destiation: %u, Cost: %u, Next Hop: %u", entry, retrieved_table[entry].destination, retrieved_table[entry].cost, retrieved_table[entry].next_hop);
 
                 // array to hold entry number of matching destinations in routing table
                 // int matching_dest_entries[2] = new int[2];  // there should never be more than 3 of the same entry in a table
                 equal_hop_count = 0;
-                better_hop_count = 0;
+                // better_hop_count = 0;
 
                 if ( update_packet->payload[r_entry].destination == retrieved_table[entry].destination ) {
                     // interate through all current entries
+                    found_entry = true;
                     if ( update_packet->payload[r_entry].cost + 1 < retrieved_table[entry].cost ) {
-                        click_chatter("\t Replacing with Better Entry");
-                        matching_dest_entries[better_hop_count] = entry;
-                        better_hop_count++;
-                        found_entry = true;
+                        // only overwrite better entry once, all others remove
+                        if ( better_hop_count < 1 ) {
+                            overwrite_entry = entry;
+                            better_hop_count++;
+                            found_entry = true;
+                            click_chatter("\t\tBetter Hop Count: %u", better_hop_count);
+                        }
+                        else {
+                            click_chatter("\t\tFound entry to delete");
+                            del_entries[better_hop_count - 1] = entry;
+                            better_hop_count++;
+                        }
                     }
                     else if ( update_packet->payload[r_entry].cost + 1 == retrieved_table[entry].cost ) {
-                        matching_dest_entries[equal_hop_count] = entry;
+                        // matching_dest_entries[equal_hop_count] = entry;
                         equal_hop_count++;
                         if ( update_packet->source == retrieved_table[entry].next_hop ) {
                             click_chatter("\t\tFound Same Entry: %u", equal_hop_count);
                             same_entry = true;
-                            found_entry = true;
                         }
+                    }
+                    else {
+                        discard_entry = true;
                     }
                 }
             }
 
+            click_chatter("\t\tBetter Hop Count: %u", better_hop_count);
+            click_chatter("\t\tEqual Hop Count: %u", equal_hop_count);
             // add equal entry if room available
             if ( !same_entry and equal_hop_count > 0 and equal_hop_count < 3 ) {
                 click_chatter("\t\tAdding New Route Entry");
                 r_table.add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
             }
-            else if ( better_hop_count > 0 ) {
-                r_table.update_entry(matching_dest_entries[0], update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
+            
+            if ( better_hop_count > 0 ) {
+                click_chatter("\t\tTEST");
+                r_table.update_entry(overwrite_entry, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
 
                 // remove alternative routes if exists
-                int i;
-                for ( i = 1; i <= better_hop_count; i++ ) {
-                    click_chatter("\t\tRemoving Old Worse Entry");
+                if ( better_hop_count > 1) {
+                    r_table.remove_table_entries(del_entries, better_hop_count - 1);
                 }
             }
             // add entry to routing table if entry was not found
-            if ( !found_entry ){
+            if ( !found_entry and !same_entry and better_hop_count <= 0 and !discard_entry ){
                 click_chatter("\t\tAdding Brand New Entry");
                 r_table.add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
                 found_entry = false;
@@ -392,13 +411,42 @@ void TESTpacketGen::run_timer(Timer *timer) {
     format->length = 3;
     // payload
 
-    export_table = new routing_entry[2];
-    export_table[0].destination = 12;
-    export_table[0].cost = 10;
-    export_table[1].destination = 69;
-    export_table[1].cost =  10;
-    export_table[2].destination = 5;
-    export_table[2].cost = 10;
+    if ( seq%20 < 5 ){
+        export_table = new routing_entry[2];
+        export_table[0].destination = 12;
+        export_table[0].cost = 10;
+        export_table[1].destination = 69;
+        export_table[1].cost =  10;
+        export_table[2].destination = 5;
+        export_table[2].cost = 10;
+    }
+    else if (seq%20 < 10 ) {
+        export_table = new routing_entry[2];
+        export_table[0].destination = 12;
+        export_table[0].cost = 5;
+        export_table[1].destination = 69;
+        export_table[1].cost =  10;
+        export_table[2].destination = 5;
+        export_table[2].cost = 10;   
+    }
+    else if (seq%20 < 15 ) {
+        export_table = new routing_entry[2];
+        export_table[0].destination = 12;
+        export_table[0].cost = 5;
+        export_table[1].destination = 69;
+        export_table[1].cost =  2;
+        export_table[2].destination = 5;
+        export_table[2].cost = 3;   
+    }
+    else {
+        export_table = new routing_entry[2];
+        export_table[0].destination = 12;
+        export_table[0].cost = 5;
+        export_table[1].destination = 39;
+        export_table[1].cost =  2;
+        export_table[2].destination = 55;
+        export_table[2].cost = 3;   
+    }
 
     //routing_entry ex = new routing_entry[100];
     //memcpy(ex, &export_table, sizeof(routing_entry[2]));
@@ -411,7 +459,7 @@ void TESTpacketGen::run_timer(Timer *timer) {
     output(0).push(packet);
 
     delete [] export_table;
-    _timer.reschedule_after_sec(1);
+    _timer.reschedule_after_sec(0.1);
 }
 
 CLICK_ENDDECLS
