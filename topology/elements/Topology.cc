@@ -50,7 +50,7 @@ void Topology::push(int port, Packet *packet) {
     click_chatter("Received packet %u. Type: %u, Source: %u", hello_packet->sequence, hello_packet->type, hello_packet->source);
     int entry;
 
-    if ( hello_packet->type != 0 ){
+    if ( hello_packet->type != 1 ){
         click_chatter("Invalid packet received at topology stage, killing packet");
         packet->kill();
     }
@@ -131,7 +131,7 @@ void Topology::run_timer(Timer *timer) {
     struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
 
     // set type
-    format->type = 0;
+    format->type = 1;
     // set source 0 temp
     format->source = seq%6;
     // set sequence

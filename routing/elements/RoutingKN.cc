@@ -28,11 +28,11 @@ int RoutingKN::configure(Vector<String> &conf, ErrorHandler *errh) {
 
 void RoutingKN::push(int port, Packet *packet) {
     assert(packet);
-    
+
     // look at update packet
     struct PacketUPDATE *update_packet = (struct PacketUPDATE *)packet->data();
 
-    if ( update_packet->type != 1 ){
+    if ( update_packet->type != 2 ){
         click_chatter("Invalid packet received at routing stage, killing packet");
         packet->kill();
     }
@@ -54,7 +54,7 @@ void RoutingKN::run_timer(Timer *timer) {
     struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
 
     // set type
-    format->type = 1;
+    format->type = 2;
     // set source 0 temp
     format->source = 666;
     // set sequence

@@ -4,8 +4,8 @@
 #include <click/timer.hh>
 #include <click/packet.hh>
 #include "kn_router.hh"
+#include <click/packet_anno.hh> //Add this one
 //#include "proj_packets.hh"
-
 
 
 //--------------ROUTING TABLE CLASS--------------
@@ -103,7 +103,7 @@ void TableKN::remove_table_entries(int remove_entries[], int remove_cnt){
 void TableKN::print_table(){
     int entry;
 
-    click_chatter("\n-----Routing Table-----");
+    click_chatter("-----Routing Table-----");
     for( entry=0; entry <= entry_num; entry++ ){
         click_chatter("Entry: %u, Destination: %u, Cost: %u, Next Hop: %u", entry, routing_table[entry].destination, routing_table[entry].cost, routing_table[entry].next_hop);
     }
@@ -124,13 +124,25 @@ void TableKN::hello_update(uint16_t h_source){
 
         // Try to find entries for HELLO source and change cost to 1
         int entry;
+        int remove_entries[2];
+        int del_count;
+        del_count = 0;
+
         for( entry=0; entry <= entry_num; entry++ ){
 
             // reassign hop count if entry exists
-            if ( routing_table[entry].destination == h_source ){
+            if ( routing_table[entry].destination == h_source and routing_table[entry].next_hop == h_source){
                 routing_table[entry].cost = 1;
                 updated_entry = true;
             }
+            else if ( routing_table[entry].destination == h_source and routing_table[entry].next_hop != h_source and routing_table[entry].cost > 1){
+                remove_entries[del_count] = entry;
+                del_count++;
+            }
+        }
+        // remove alternative routes of higher cost
+        if ( del_count > 0 ) {
+            remove_table_entries(remove_entries, del_count);
         }
 
         if ( !updated_entry ){
@@ -139,6 +151,7 @@ void TableKN::hello_update(uint16_t h_source){
             routing_table[entry_num].cost = 1;
             routing_table[entry].next_hop = h_source;
         }
+
     }
 }
 
@@ -171,19 +184,17 @@ void Topology::push(int port, Packet *packet) {
     // look at hello packet
     struct PacketHELLO *hello_packet = (struct PacketHELLO *)packet->data();
 
-    click_chatter("Received packet %u. Type: %u, Source: %u", hello_packet->sequence, hello_packet->type, hello_packet->source);
     int entry;
 
     if ( hello_packet->type != 1 ){
-        click_chatter("Invalid packet received at topology stage, killing packet");
-        packet->kill();
+        //packet->kill();
     }
     else {
         r_table.hello_update(hello_packet->source);
     }
 
-    r_table.print_table();
-    packet->kill();
+    //r_table.print_table();
+    //packet->kill();
 }
 
 void Topology::run_timer(Timer *timer) {
@@ -242,20 +253,15 @@ void RoutingKN::push(int port, Packet *packet) {
     struct PacketUPDATE *update_packet = (struct PacketUPDATE *)packet->data();
 
     if ( update_packet->type != 2 ){
-        click_chatter("Invalid packet received at routing stage, killing packet");
-        packet->kill();
+        //packet->kill();
     }
     else {
-        click_chatter("Received packet Type: %u, Source: %u, Sequence: %u, Length: %u, Payload: %u", update_packet->type, update_packet->source, update_packet->sequence, update_packet->length, update_packet->payload);
-
         //routing_entry* pay_read = new routing_entry[update_packet->length];
         //memcpy( pay_read, &update_packet->payload, update_packet->length * sizeof(routing_entry) );
 
         int r_entry;
         // interate through all entries in received routing table
         for ( r_entry = 0; r_entry < update_packet->length; r_entry++ ) {
-            click_chatter("Checking Received Entry: %u, Dest: %u, Cost: %u, Source: %u", r_entry, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost, update_packet->source);
-            //click_chatter("\n-----UPDATE ROUTING TABLE-----");
 
             // discard incoming entries if already in table
             bool same_entry;
@@ -279,8 +285,6 @@ void RoutingKN::push(int port, Packet *packet) {
             routing_entry* retrieved_table = r_table.get_all_entries();
             for( entry=0; entry <= r_table.get_entry_num(); entry++ ){
                 found_entry = false;
-                click_chatter("\tChecking Own Entry: %u, Destiation: %u, Cost: %u, Next Hop: %u", entry, retrieved_table[entry].destination, retrieved_table[entry].cost, retrieved_table[entry].next_hop);
-
                 // array to hold entry number of matching destinations in routing table
                 // int matching_dest_entries[2] = new int[2];  // there should never be more than 3 of the same entry in a table
                 equal_hop_count = 0;
@@ -295,10 +299,8 @@ void RoutingKN::push(int port, Packet *packet) {
                             overwrite_entry = entry;
                             better_hop_count++;
                             found_entry = true;
-                            click_chatter("\t\tBetter Hop Count: %u", better_hop_count);
                         }
                         else {
-                            click_chatter("\t\tFound entry to delete");
                             del_entries[better_hop_count - 1] = entry;
                             better_hop_count++;
                         }
@@ -307,7 +309,6 @@ void RoutingKN::push(int port, Packet *packet) {
                         // matching_dest_entries[equal_hop_count] = entry;
                         equal_hop_count++;
                         if ( update_packet->source == retrieved_table[entry].next_hop ) {
-                            click_chatter("\t\tFound Same Entry: %u", equal_hop_count);
                             same_entry = true;
                         }
                     }
@@ -317,16 +318,12 @@ void RoutingKN::push(int port, Packet *packet) {
                 }
             }
 
-            click_chatter("\t\tBetter Hop Count: %u", better_hop_count);
-            click_chatter("\t\tEqual Hop Count: %u", equal_hop_count);
             // add equal entry if room available
             if ( !same_entry and equal_hop_count > 0 and equal_hop_count < 3 ) {
-                click_chatter("\t\tAdding New Route Entry");
                 r_table.add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
             }
-            
+
             if ( better_hop_count > 0 ) {
-                click_chatter("\t\tTEST");
                 r_table.update_entry(overwrite_entry, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
 
                 // remove alternative routes if exists
@@ -336,14 +333,13 @@ void RoutingKN::push(int port, Packet *packet) {
             }
             // add entry to routing table if entry was not found
             if ( !found_entry and !same_entry and better_hop_count <= 0 and !discard_entry ){
-                click_chatter("\t\tAdding Brand New Entry");
                 r_table.add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
                 found_entry = false;
             }
         }
 
-    r_table.print_table();
-    packet->kill();
+    //r_table.print_table();
+    //packet->kill();
     }
 }
 
@@ -393,7 +389,7 @@ void TESTpacketGen::run_timer(Timer *timer) {
     assert(timer == &_timer);
 
     // make click packet with size of UPDATE packet format
-    WritablePacket *packet = Packet::make(0,0,sizeof(struct PacketUPDATE), 0);
+    WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketUPDATE), 0);
 
     // set data to 0?
     memset(packet->data(),0,packet->length());
@@ -427,7 +423,7 @@ void TESTpacketGen::run_timer(Timer *timer) {
         export_table[1].destination = 69;
         export_table[1].cost =  10;
         export_table[2].destination = 5;
-        export_table[2].cost = 10;   
+        export_table[2].cost = 10;
     }
     else if (seq%20 < 15 ) {
         export_table = new routing_entry[2];
@@ -436,7 +432,7 @@ void TESTpacketGen::run_timer(Timer *timer) {
         export_table[1].destination = 69;
         export_table[1].cost =  2;
         export_table[2].destination = 5;
-        export_table[2].cost = 3;   
+        export_table[2].cost = 3;
     }
     else {
         export_table = new routing_entry[2];
@@ -445,7 +441,7 @@ void TESTpacketGen::run_timer(Timer *timer) {
         export_table[1].destination = 39;
         export_table[1].cost =  2;
         export_table[2].destination = 55;
-        export_table[2].cost = 3;   
+        export_table[2].cost = 3;
     }
 
     //routing_entry ex = new routing_entry[100];
@@ -459,8 +455,551 @@ void TESTpacketGen::run_timer(Timer *timer) {
     output(0).push(packet);
 
     delete [] export_table;
-    _timer.reschedule_after_sec(0.1);
+    _timer.reschedule_after_sec(7);
 }
 
 CLICK_ENDDECLS
 EXPORT_ELEMENT(TESTpacketGen)
+
+
+
+CLICK_DECLS
+
+packetGen::packetGen() : _timerHELLO(this), _timerHELLO_TO(this), _timerUPDATE(this), _timerUPDATE_TO(this), _timerPrintTable(this) {
+    last_tran = 0;
+    seq = 0;
+    _my_host = 0;
+}
+
+packetGen::~packetGen(){
+
+}
+
+int packetGen::initialize(ErrorHandler *errh){
+    _timerHELLO_TO.initialize(this);
+    _timerHELLO_TO.schedule_after_sec(1);
+    _timerHELLO.initialize(this);
+    _timerHELLO.schedule_after_sec(5);
+
+    _timerUPDATE_TO.initialize(this);
+    _timerUPDATE_TO.schedule_after_sec(1);
+    _timerUPDATE.initialize(this);
+    _timerUPDATE.schedule_after_sec(5);
+
+    _timerPrintTable.initialize(this);
+    _timerPrintTable.schedule_after_sec(10);
+
+    return 0;
+}
+
+int packetGen::configure(Vector<String> &conf, ErrorHandler *errh) {
+    if (cp_va_kparse(conf, this, errh,
+                  "MY_ADDRESS", cpkP+cpkM, cpUnsigned, &_my_host,
+                  cpEnd) < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+void packetGen::run_timer(Timer *timer) {
+    // Periodically transmit or retransmit HELLO and UPDATE packet
+    if( timer == &_timerHELLO_TO ){
+        seq++;
+        WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+        memset(packet->data(),0,packet->length());
+        struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
+        format->type = 1;
+        format->source = _my_host;
+        format->sequence = seq;
+
+        last_tran = 1;
+        output(4).push(packet);
+        _timerHELLO_TO.schedule_after_sec(1);
+    } else if( timer == &_timerHELLO ){
+        WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+        memset(packet->data(),0,packet->length());
+        struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
+        format->type = 1;
+        format->source = _my_host;
+        format->sequence = seq;
+
+        last_tran = 1;
+        output(4).push(packet);
+        _timerHELLO.schedule_after_sec(5);
+    }
+    else if ( timer == &_timerUPDATE_TO ) {
+        WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketUPDATE), 0);
+
+        memset(packet->data(),0,packet->length());
+
+        // make format point to data part of click packet where UPDATE packet is stored
+        struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
+
+        format->type = 2;
+        format->source = _my_host;
+        format->sequence = seq;
+        format->length = r_table.get_entry_num();
+
+        memcpy(format->payload, r_table.get_all_entries(), format->length*sizeof(routing_entry));
+
+        last_tran = 2;
+        output(5).push(packet);
+        _timerUPDATE.schedule_after_sec(5);
+
+    }
+    else if( timer == &_timerUPDATE ) {
+        WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+        memset(packet->data(),0,packet->length());
+        struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
+        format->type = 2;
+        format->source = _my_host;
+        format->sequence = seq;
+        format->length = r_table.get_entry_num();
+
+        memcpy(format->payload, r_table.get_all_entries(), format->length*sizeof(routing_entry));
+
+        last_tran = 2;
+        output(5).push(packet);
+        _timerUPDATE.schedule_after_sec(5);
+    }
+    else if( timer == &_timerPrintTable ) {
+        click_chatter("\n-----Host %u-----", _my_host);
+        r_table.print_table();
+        _timerPrintTable.schedule_after_sec(10);
+    }
+    else {
+        assert(false);
+    }
+}
+
+void packetGen::push(int port, Packet *packet) {
+
+    assert(packet);
+    struct PacketType *header = (struct PacketType *)packet->data();
+
+    // Read type, send ACK, and send to next stage
+    if ( header->type == 4 ){
+        // Handle Data
+        struct PacketDATA *header4 = (struct PacketDATA *)packet->data();
+        WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
+        memset(ack->data(),0,ack->length());
+        struct PacketACK *format = (struct PacketACK*) ack->data();
+        format->type = 3;
+        format->source = _my_host;
+        format->sequence = header4->sequence;
+        format->destination = header4->source;
+        output(2).push(ack);
+        output(3).push(packet);
+        //packet->kill();
+    }
+    else if ( header->type == 1 ){
+        // Handle HELLO
+        struct PacketHELLO *header1 = (struct PacketHELLO *)packet->data();
+        WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
+        memset(ack->data(),0,ack->length());
+        struct PacketACK *format = (struct PacketACK*) ack->data();
+        format->type = 3;
+        format->source = _my_host;
+        format->sequence = header1->sequence;
+        format->destination = header1->source;
+        output(2).push(ack);
+        output(0).push(packet);
+        //packet->kill();
+    }
+    else if ( header->type == 2 ){
+        // Handle UPDATE
+        struct PacketUPDATE *header2 = (struct PacketUPDATE *)packet->data();
+        WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
+        memset(ack->data(),0,ack->length());
+        struct PacketACK *format = (struct PacketACK*) ack->data();
+        format->type = 3;
+        format->source = _my_host;
+        format->sequence = header2->sequence;
+        format->destination = header2->source;
+        output(2).push(ack);
+        output(1).push(packet);
+        //packet->kill();
+    }
+    else if ( header->type == 3 ) {
+        // Handle ACK
+        struct PacketACK *header3 = (struct PacketACK *)packet->data();
+        if(header3->sequence == seq) {
+            if ( last_tran == 1 ) {
+                _timerHELLO_TO.unschedule();
+                seq++;
+                _timerHELLO_TO.schedule_after_sec(5);
+            }
+            if ( last_tran == 2 ) {
+                _timerUPDATE_TO.unschedule();
+                seq++;
+                _timerUPDATE_TO.schedule_after_sec(5);
+            }
+            else {
+                //packet->kill();
+            }
+        }
+        else {
+            //packet->kill();
+        }
+    }
+    else {
+        // Kill invalid packet
+        //packet->kill();
+    }
+}
+
+CLICK_ENDDECLS
+EXPORT_ELEMENT(packetGen)
+
+
+
+//---------------Forwarding Element--------------//
+CLICK_DECLS
+
+ForwardKN::ForwardKN(){
+    num_dest = 0;
+}
+
+ForwardKN::~ForwardKN(){
+
+}
+
+int ForwardKN::configure(Vector<String> &conf, ErrorHandler *errh){
+    return 0;
+}
+
+void ForwardKN::push(Packet *packet){
+    pckt = packet;
+    uint8_t pType = readPacket();
+
+    //Find routing table entries
+    if (pType==4){
+        //Make array for possibleHops, set number of routes for each destination to 0
+        for (int i = 0; i<num_dest; i++){
+            possibleHops[i][4] = 0;
+        }
+
+        routing_entry* forwarding_table = r_table.get_all_entries();
+        for (int i = 0; i<num_dest; i++){
+            for (int entry=0; entry <= r_table.get_entry_num(); entry++){
+                if (forwarding_table[entry].destination == dest[i]){
+                    costs[i] = forwarding_table[entry].cost;
+                    possibleHops[i][possibleHops[i][4]] = forwarding_table[entry].next_hop;
+                    possibleHops[i][4]++;
+                }
+            }
+
+            //Discard packet if routing entry not found
+            if (possibleHops[i][4]==0){
+                //packet->kill();
+                click_chatter("Forward Element - One or more destination not found in table. Unable to forward packet");
+                goto quit;
+            }
+        }
+
+        //Perform forwarding algorithm
+        chooseKdest();
+    }
+
+    quit: ;
+}
+
+//returns packet Type, stores all other packet information in class variables
+uint8_t ForwardKN::readPacket(){
+
+    assert(pckt);
+    struct PacketDATA *header = (struct PacketDATA *)pckt->data();
+    uint8_t pType = header->type;
+    src = header->source;
+    seq = header->sequence;
+    k_val = header->k;
+
+    if (pType == 4){
+        uint16_t d[3];
+        d[0] = header->destination1;
+        d[1] = header->destination2;
+        d[2] = header->destination3;
+
+        for (int i = 0; i<3; i++){
+            if (d[i] != 0){
+                dest[num_dest] = d[i];
+                num_dest++;
+            }
+        }
+
+        len = header->length;
+        data_payload = header->payload;
+    }
+
+    return pType;
+}
+
+
+void ForwardKN::chooseKdest(){
+    click_chatter("Forward Element - Beginning Forwarding Algorithm");
+    if (k_val==3){
+        findNextHop();
+    }
+    if (k_val==2){
+        if (num_dest>k_val){
+            //Find index of highest cost destination
+            int maxIndex = 0;
+            for (int i = 1; i < num_dest; i++){
+                if (costs[i] > costs[maxIndex]){
+                    maxIndex = i;
+                }
+            }
+
+            //Remove the highest cost destination from dest and possibleHops
+            uint16_t tmpHops[3][4];
+            uint16_t tmpDest[3];
+            int tmp_index=0;
+            for (int i = 0; i<num_dest;i++){
+                if (i != maxIndex){
+                    for (int j = 0; j<4;j++){
+                        tmpHops[tmp_index][j] = possibleHops[i][j];
+                    }
+                    tmpDest[tmp_index] = dest[i];
+                    tmp_index++;
+                }
+            }
+            num_dest = tmp_index+1;
+            memcpy(possibleHops, tmpHops, sizeof(possibleHops));
+            memcpy(dest, tmpDest, sizeof(dest));
+
+        }
+        findNextHop();
+    }
+    if (k_val==1){
+        int leastIndex = 0;
+        for (int i = 1; i< num_dest; i++){
+            if (costs[i] < costs[leastIndex]){
+                leastIndex = i;
+            }
+        }
+        int dest_index[] = {0,0,0};
+        dest_index[leastIndex] = 1;
+        forwardPacket(1, dest_index, possibleHops[leastIndex][0]);
+    }
+}
+
+void ForwardKN::findNextHop(){
+    bool done = false;
+    //Finding common nextHops for 3-pair, k=3 only
+    if (k_val == 3){
+        for (int i1 = 0; i1<possibleHops[i1][4]; i1++){
+            for (int i2 = 0; i2<possibleHops[i2][4]; i2++){
+                for (int i3 = 0; i3<possibleHops[i3][4]; i3++){
+                    if (possibleHops[0][i1] == possibleHops[1][i2] && possibleHops[1][i2] == possibleHops[2][i3]){
+                        int dest_index[] = {1,1,1};
+                        forwardPacket(3, dest_index, possibleHops[0][i1]);
+                        done = true;
+                    }
+                }
+            }
+        }
+    }
+
+    //Finding common nextHops for 2-pair. Will run this loop for either k = 2 or when k = 3 and 3-pair not found
+    if (!done){
+        for (int i1 = 0; i1 < k_val-1; i1++){
+            for (int j1 = i1+1; j1<k_val; j1++){
+            //Only check for a common nextHop if the current choices are different
+                for (int i2 = 0; i2<possibleHops[i1][4]; i2++){
+                    for (int j2 = 0; j2<possibleHops[j1][4]; j2++){
+                        if (possibleHops[i1][i2] == possibleHops[j1][j2]){
+                            //Put multicasted destinations together in new array
+                            int dest_index[] = {1,1,1};
+                            dest_index[3-i1-i2] = 0;
+                            forwardPacket(2, dest_index, possibleHops[i1][i2]);
+                            //Still need to send last packet if k = 3
+                            if (k_val==3){
+                                int dest_index[] = {0,0,0};
+                                dest_index[3-i1-i2] = 1;
+                                forwardPacket(1, dest_index, possibleHops[3-i1-i2][0]);
+                            }
+                            done = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    //Send out unicast packets if no 3 or 2-pairs are found
+    if (!done){
+        int dest_index[] = {0,0,0};
+        for (int i = 0; i<k_val; i++){
+            dest_index[i] = 1;
+            forwardPacket(1, dest_index, possibleHops[i][0]);
+        }
+    }
+
+}
+
+void ForwardKN::forwardPacket(uint8_t new_k, int dest_index[3], uint16_t nextHop){
+
+    // make click packet with size of DATA packet format
+    WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketDATA) + len, 0);
+
+    // set data to 0?
+    memset(packet->data(),0,packet->length());
+
+    // make format point to data part of click packet where UPDATE packet is stored
+    struct PacketDATA *format = (struct PacketDATA*) packet->data();
+
+    uint16_t destinations[] = {0,0,0};
+    for (int i = 0; i < 3; i++){
+        if (dest_index[i] == 1){
+            destinations[i] = dest[i];
+        }
+    }
+
+    format->type = 4;
+    format->source = src;
+    format->sequence = seq;
+    format->k = new_k;
+    format->destination1 = destinations[0];
+    format->destination2 = destinations[1];
+    format->destination3 = destinations[2];
+    format->length = len;
+    format->payload = data_payload;
+
+    int anno = PAINT_ANNO_OFFSET;
+    packet->set_anno_u16(anno, nextHop);
+
+    output(0).push(packet);
+
+    click_chatter("Forwarding packet with k: %u", new_k);
+}
+
+CLICK_ENDDECLS
+EXPORT_ELEMENT(ForwardKN)
+
+
+
+//------End of Forwarding Element--------//
+
+CLICK_DECLS
+
+McSwitch::McSwitch(){
+}
+McSwitch::~McSwitch(){
+    port0_addr = 0;
+    port1_addr = 0;
+    port2_addr = 0;
+    port3_addr = 0;
+    port4_addr = 0;
+    port5_addr = 0;
+    port6_addr = 0;
+    port7_addr = 0;
+}
+
+int McSwitch::initialize(ErrorHandler *errh){
+    return 0;
+}
+
+int McSwitch::configure(Vector<String> &conf, ErrorHandler *errh) {
+    if (cp_va_kparse(conf, this, errh,
+                  "PORT0_ADDR", cpkP+cpkM, cpUnsigned, &port0_addr,
+                  "PORT1_ADDR", cpkP+cpkM, cpUnsigned, &port1_addr,
+                  "PORT2_ADDR", cpkP+cpkM, cpUnsigned, &port2_addr,
+                  "PORT3_ADDR", cpkP+cpkM, cpUnsigned, &port3_addr,
+                  "PORT4_ADDR", cpkP+cpkM, cpUnsigned, &port4_addr,
+                  "PORT5_ADDR", cpkP+cpkM, cpUnsigned, &port5_addr,
+                  "PORT6_ADDR", cpkP+cpkM, cpUnsigned, &port6_addr,
+                  "PORT7_ADDR", cpkP+cpkM, cpUnsigned, &port7_addr,
+                  cpEnd) < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+void McSwitch::push(int port, Packet *packet) {
+
+    assert(packet);
+    struct PacketType *header = (struct PacketType *)packet->data();
+
+    if (header->type == 1 || header->type == 2){
+        for(int i = 0; i < noutputs(); i++){
+            output(i).push(packet);
+        }
+    }
+    if (header->type==3){
+
+        uint16_t next_addr;
+
+        struct PacketACK *header = (struct PacketACK *)packet->data();
+
+        next_addr = header->destination;
+
+        if ( next_addr == port0_addr ){
+            output(0).push(packet);
+        }
+        else if ( next_addr == port1_addr ){
+            output(1).push(packet);
+        }
+        else if ( next_addr == port2_addr ){
+            output(2).push(packet);
+        }
+        else if ( next_addr == port3_addr ){
+            output(3).push(packet);
+        }
+        else if ( next_addr == port4_addr ){
+            output(4).push(packet);
+        }
+        else if ( next_addr == port5_addr ){
+            output(5).push(packet);
+        }
+        else if ( next_addr == port6_addr ){
+            output(6).push(packet);
+        }
+        else if ( next_addr == port7_addr ){
+            output(7).push(packet);
+        }
+        else {
+            //packet->kill();
+        }
+    }
+    else {
+        //packet->kill();
+    }
+    if (header->type == 4){
+        int anno = PAINT_ANNO_OFFSET;
+        // int next_port = _ports_table.get(packet->anno_u16(anno));
+        uint16_t next_addr;
+        next_addr = packet->anno_u16(anno);
+
+        if ( next_addr == port0_addr ){
+            output(0).push(packet);
+        }
+        else if ( next_addr == port1_addr ){
+            output(1).push(packet);
+        }
+        else if ( next_addr == port2_addr ){
+            output(2).push(packet);
+        }
+        else if ( next_addr == port3_addr ){
+            output(3).push(packet);
+        }
+        else if ( next_addr == port4_addr ){
+            output(4).push(packet);
+        }
+        else if ( next_addr == port5_addr ){
+            output(5).push(packet);
+        }
+        else if ( next_addr == port6_addr ){
+            output(6).push(packet);
+        }
+        else if ( next_addr == port7_addr ){
+            output(7).push(packet);
+        }
+        else {
+            //packet->kill();
+        }
+    }
+    else {
+        //packet->kill();
+    }
+}
+CLICK_ENDDECLS
+EXPORT_ELEMENT(McSwitch)

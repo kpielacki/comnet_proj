@@ -36,7 +36,7 @@ void HELLOpacketGenerator::run_timer(Timer *timer) {
     struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
 
     // set type
-    format->type = 0;
+    format->type = seq%5;
     // set source 0 temp
     format->source = seq%6;
     // set sequence

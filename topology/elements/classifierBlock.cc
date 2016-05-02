@@ -15,7 +15,7 @@ int ClassifierBlock::initialize(ErrorHandler*){
 
 void ClassifierBlock::push(int port, Packet *packet) {
 	assert(packet);
-	struct PacketHeader *header = (struct PacketHeader *)packet->data();
+	struct PacketType *header = (struct PacketType *)packet->data();
 	//Type == 1 -> Hello
 	if(header->type == 1) {
 		output(0).push(packet);
@@ -39,5 +39,5 @@ void ClassifierBlock::push(int port, Packet *packet) {
 }
 
 
-CLICK_ENDDECLS 
+CLICK_ENDDECLS
 EXPORT_ELEMENT(ClassifierBlock)

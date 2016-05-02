@@ -28,11 +28,12 @@ struct PacketACK{
 struct PacketDATA{
      uint8_t type;
 	 uint16_t source;
+     uint8_t sequence;
 	 uint8_t k;
 	 uint16_t destination1;
 	 uint16_t destination2;
 	 uint16_t destination3;
-	 uint8_t length;
+	 uint16_t length;
      uint64_t payload;
 };
 

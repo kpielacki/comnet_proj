@@ -27,7 +27,7 @@ void HELLOpacketGenerator::run_timer(Timer *timer) {
     assert(timer == &_timer);
 
     // make click packet with size of hello packet format
-    WritablePacket *packet = Packet::make(0,0,sizeof(struct PacketHELLO), 0);
+    WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
 
     // set data to 0?
     memset(packet->data(),0,packet->length());
@@ -36,14 +36,14 @@ void HELLOpacketGenerator::run_timer(Timer *timer) {
     struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
 
     // set type
-    format->type = seq%5;
+    format->type = 4;
     // set source 0 temp
-    format->source = seq%6;
+    format->source = seq%667;
     // set sequence
     format->sequence = seq;
 
     output(0).push(packet);
-    _timer.reschedule_after_sec(1);
+    _timer.reschedule_after_sec(5);
 }
 
 CLICK_ENDDECLS
