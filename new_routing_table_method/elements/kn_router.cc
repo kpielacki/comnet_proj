@@ -465,7 +465,7 @@ EXPORT_ELEMENT(TESTpacketGen)
 
 CLICK_DECLS
 
-packetGen::packetGen() : _timerHELLO(this), _timerHELLO_TO(this), _timerUPDATE(this), _timerUPDATE_TO(this), _timerPrintTable(this) {
+packetGen::packetGen() : _timerHELLO(this), _timerHELLO_TO(this), _timerUPDATE(this), _timerUPDATE_TO(this), _timerPrintTable(this), _timerDATA(this) {
     last_tran = 0;
     seq = 0;
     _my_host = 0;
@@ -489,12 +489,16 @@ int packetGen::initialize(ErrorHandler *errh){
     _timerPrintTable.initialize(this);
     _timerPrintTable.schedule_after_sec(10);
 
+    _timerDATA.initialize(this);
+    _timerDATA.schedule_now();
+
     return 0;
 }
 
 int packetGen::configure(Vector<String> &conf, ErrorHandler *errh) {
     if (cp_va_kparse(conf, this, errh,
                   "MY_ADDRESS", cpkP+cpkM, cpUnsigned, &_my_host,
+                  "CLIENT", cpkP+cpkM, cpUnsigned, &_client,
                   cpEnd) < 0) {
     return -1;
   }
@@ -503,72 +507,172 @@ int packetGen::configure(Vector<String> &conf, ErrorHandler *errh) {
 
 void packetGen::run_timer(Timer *timer) {
     // Periodically transmit or retransmit HELLO and UPDATE packet
-    if( timer == &_timerHELLO_TO ){
-        seq++;
-        WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
-        memset(packet->data(),0,packet->length());
-        struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
-        format->type = 1;
-        format->source = _my_host;
-        format->sequence = seq;
+    if ( _client == 1 ){
+        if( timer == &_timerDATA ){
 
-        last_tran = 1;
-        output(4).push(packet);
-        _timerHELLO_TO.schedule_after_sec(1);
-    } else if( timer == &_timerHELLO ){
-        WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
-        memset(packet->data(),0,packet->length());
-        struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
-        format->type = 1;
-        format->source = _my_host;
-        format->sequence = seq;
+            assert(timer == &_timerDATA);
 
-        last_tran = 1;
-        output(4).push(packet);
-        _timerHELLO.schedule_after_sec(5);
-    }
-    else if ( timer == &_timerUPDATE_TO ) {
-        WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketUPDATE), 0);
+            // make click packet with size of DATA packet format
+            WritablePacket *packet = Packet::make(0,0,sizeof(struct PacketDATA) + 5, 0);
 
-        memset(packet->data(),0,packet->length());
+            // set data to 0?
+            memset(packet->data(),0,packet->length());
 
-        // make format point to data part of click packet where UPDATE packet is stored
-        struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
+            // make format point to data part of click packet where DATA packet is stored
+            struct PacketDATA *format = (struct PacketDATA*) packet->data();
 
-        format->type = 2;
-        format->source = _my_host;
-        format->sequence = seq;
-        format->length = r_table.get_entry_num();
+            format->type = 4;
+            format->source = _my_host;
+            format->sequence = seq;
+            format->k = 3;
+            format->destination1 = 24;
+            format->destination2 = 25;
+            format->destination3 = 26;
+            format->length = 5;
+            format->payload = 1099511623776;
 
-        memcpy(format->payload, r_table.get_all_entries(), format->length*sizeof(routing_entry));
+            output(0).push(packet);
+            _timerDATA.reschedule_after_sec(20);
+        } else if( timer == &_timerHELLO_TO ){
+            seq++;
+            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+            memset(packet->data(),0,packet->length());
 
-        last_tran = 2;
-        output(5).push(packet);
-        _timerUPDATE.schedule_after_sec(5);
+            struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
 
-    }
-    else if( timer == &_timerUPDATE ) {
-        WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
-        memset(packet->data(),0,packet->length());
-        struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
-        format->type = 2;
-        format->source = _my_host;
-        format->sequence = seq;
-        format->length = r_table.get_entry_num();
+            format->type = 1;
+            format->source = _my_host;
+            format->sequence = seq;
 
-        memcpy(format->payload, r_table.get_all_entries(), format->length*sizeof(routing_entry));
+            last_tran = 1;
+            output(4).push(packet);
+            _timerHELLO_TO.schedule_after_sec(1);
+        } else if( timer == &_timerHELLO ){
+            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+            memset(packet->data(),0,packet->length());
+            struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
+            format->type = 1;
+            format->source = _my_host;
+            format->sequence = seq;
 
-        last_tran = 2;
-        output(5).push(packet);
-        _timerUPDATE.schedule_after_sec(5);
-    }
-    else if( timer == &_timerPrintTable ) {
-        click_chatter("\n-----Host %u-----", _my_host);
-        r_table.print_table();
-        _timerPrintTable.schedule_after_sec(10);
+            last_tran = 1;
+            output(4).push(packet);
+            _timerHELLO.schedule_after_sec(5);
+        }
+        else if ( timer == &_timerUPDATE_TO ) {
+            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketUPDATE), 0);
+
+            memset(packet->data(),0,packet->length());
+
+            // make format point to data part of click packet where UPDATE packet is stored
+            struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
+
+            format->type = 2;
+            format->source = _my_host;
+            format->sequence = seq;
+            format->length = r_table.get_entry_num();
+
+            memcpy(format->payload, r_table.get_all_entries(), format->length*sizeof(routing_entry));
+
+            last_tran = 2;
+            output(5).push(packet);
+            _timerUPDATE.schedule_after_sec(5);
+
+        }
+        else if( timer == &_timerUPDATE ) {
+            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+            memset(packet->data(),0,packet->length());
+            struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
+            format->type = 2;
+            format->source = _my_host;
+            format->sequence = seq;
+            format->length = r_table.get_entry_num();
+
+            memcpy(format->payload, r_table.get_all_entries(), format->length*sizeof(routing_entry));
+
+            last_tran = 2;
+            output(5).push(packet);
+            _timerUPDATE.schedule_after_sec(5);
+        }
+        else if( timer == &_timerPrintTable ) {
+            click_chatter("\n-----Host %u-----", _my_host);
+            r_table.print_table();
+            _timerPrintTable.schedule_after_sec(10);
+        }
+        else {
+            assert(false);
+        }
     }
     else {
-        assert(false);
+        if( timer == &_timerHELLO_TO ){
+            seq++;
+            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+            memset(packet->data(),0,packet->length());
+
+            struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
+
+            format->type = 1;
+            format->source = _my_host;
+            format->sequence = seq;
+
+            last_tran = 1;
+            output(4).push(packet);
+            _timerHELLO_TO.schedule_after_sec(1);
+        } else if( timer == &_timerHELLO ){
+            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+            memset(packet->data(),0,packet->length());
+            struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
+            format->type = 1;
+            format->source = _my_host;
+            format->sequence = seq;
+
+            last_tran = 1;
+            output(4).push(packet);
+            _timerHELLO.schedule_after_sec(5);
+        }
+        else if ( timer == &_timerUPDATE_TO ) {
+            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketUPDATE), 0);
+
+            memset(packet->data(),0,packet->length());
+
+            // make format point to data part of click packet where UPDATE packet is stored
+            struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
+
+            format->type = 2;
+            format->source = _my_host;
+            format->sequence = seq;
+            format->length = r_table.get_entry_num();
+
+            memcpy(format->payload, r_table.get_all_entries(), format->length*sizeof(routing_entry));
+
+            last_tran = 2;
+            output(5).push(packet);
+            _timerUPDATE.schedule_after_sec(5);
+
+        }
+        else if( timer == &_timerUPDATE ) {
+            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+            memset(packet->data(),0,packet->length());
+            struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
+            format->type = 2;
+            format->source = _my_host;
+            format->sequence = seq;
+            format->length = r_table.get_entry_num();
+
+            memcpy(format->payload, r_table.get_all_entries(), format->length*sizeof(routing_entry));
+
+            last_tran = 2;
+            output(5).push(packet);
+            _timerUPDATE.schedule_after_sec(5);
+        }
+        else if( timer == &_timerPrintTable ) {
+            click_chatter("\n-----Host %u-----", _my_host);
+            r_table.print_table();
+            _timerPrintTable.schedule_after_sec(10);
+        }
+        else {
+            assert(false);
+        }
     }
 }
 
@@ -590,7 +694,7 @@ void packetGen::push(int port, Packet *packet) {
         format->destination = header4->source;
         output(2).push(ack);
         output(3).push(packet);
-        //packet->kill();
+        // packet->kill();
     }
     else if ( header->type == 1 ){
         // Handle HELLO
@@ -604,7 +708,7 @@ void packetGen::push(int port, Packet *packet) {
         format->destination = header1->source;
         output(2).push(ack);
         output(0).push(packet);
-        //packet->kill();
+        // packet->kill();
     }
     else if ( header->type == 2 ){
         // Handle UPDATE
@@ -618,7 +722,7 @@ void packetGen::push(int port, Packet *packet) {
         format->destination = header2->source;
         output(2).push(ack);
         output(1).push(packet);
-        //packet->kill();
+        // packet->kill();
     }
     else if ( header->type == 3 ) {
         // Handle ACK
@@ -919,9 +1023,9 @@ void McSwitch::push(int port, Packet *packet) {
     assert(packet);
     struct PacketType *header = (struct PacketType *)packet->data();
 
-    if (header->type == 1 || header->type == 2){
+    if (header->type == 1 or header->type == 2){
         for(int i = 0; i < noutputs(); i++){
-            output(i).push(packet);
+            output(i).push(packet->clone());
         }
     }
     if (header->type==3){

@@ -127,12 +127,14 @@ class packetGen : public Element {
     private:
         int last_tran;
         uint16_t _my_host;
+        int _client;
 
         Timer _timerHELLO_TO;
         Timer _timerHELLO;
         Timer _timerUPDATE_TO;
         Timer _timerUPDATE;
         Timer _timerPrintTable;
+        Timer _timerDATA;
 
         int seq;
 };
