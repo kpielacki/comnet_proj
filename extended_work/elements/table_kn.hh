@@ -3,6 +3,7 @@
 #include <click/element.hh>
 #include <click/vector.hh>
 #include <click/timer.hh>
+#include <click/hashtable.hh>
 CLICK_DECLS
 
 struct routing_entry{
@@ -34,6 +35,7 @@ class TableKN: public Element{
         bool first_entry;
         int entry_num;
         routing_entry *routing_table;
+        HashTable<int, int> ports_table;
 };
 
 CLICK_ENDDECLS
