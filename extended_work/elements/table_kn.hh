@@ -31,6 +31,9 @@ class TableKN: public Element{
         routing_entry *get_all_entries();
         void print_table();
 
+        void setPort(uint16_t addr, int port);
+        int getPort(uint16_t addr);
+
     private:
         bool first_entry;
         int entry_num;
