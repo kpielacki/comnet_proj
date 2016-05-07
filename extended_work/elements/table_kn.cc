@@ -134,5 +134,14 @@ void TableKN::hello_update(uint16_t h_source){
     }
 }
 
+void TableKN::setPort(uint16_t addr, int port){
+    ports_table.set(addr, port);
+}
+
+int TableKN::getPort(uint16_t addr){
+    return ports_table.get(addr);
+}
+
+
 CLICK_ENDDECLS
 EXPORT_ELEMENT(TableKN)
