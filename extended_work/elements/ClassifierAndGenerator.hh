@@ -12,7 +12,7 @@ class ClassifierAndGenerator : public Element {
         ClassifierAndGenerator();
         ~ClassifierAndGenerator();
         const char *class_name() const { return "ClassifierAndGenerator";}
-        const char *port_count() const { return "1/5";}
+        const char *port_count() const { return "1-/5";}
         // ---Processing Input Ports---
         // port 0 to switch sending periodic HELLO's and UPDATE's
         // port 1 to switch for sending ACK
@@ -30,6 +30,7 @@ class ClassifierAndGenerator : public Element {
 
     private:
         int last_tran;
+        int acks_left;
         TableKN *r_table;
 
         Timer _timerHELLO_TO;
