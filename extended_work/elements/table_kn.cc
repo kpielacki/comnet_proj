@@ -10,11 +10,25 @@ CLICK_DECLS
 TableKN::TableKN(){
     first_entry = true;
     entry_num = 0;
+    _my_host = 0;
     //static routing_entry *routing_table = new routing_entry[0];
 }
 
 TableKN::~TableKN(){
 
+}
+
+int TableKN::configure(Vector<String> &conf, ErrorHandler *errh) {
+    if (cp_va_kparse(conf, this, errh,
+                  "MY_HOST", cpkP+cpkM, cpUnsigned, &_my_host,
+                  cpEnd) < 0) {
+    return -1;
+  }
+return 0;
+}
+
+uint16_t TableKN::get_my_host() {
+    return _my_host;
 }
 
 void TableKN::adjust_size(int new_size){

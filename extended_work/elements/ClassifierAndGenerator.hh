@@ -30,7 +30,6 @@ class ClassifierAndGenerator : public Element {
 
     private:
         int last_tran;
-        uint16_t _my_host;
         TableKN *r_table;
 
         Timer _timerHELLO_TO;

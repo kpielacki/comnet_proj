@@ -10,7 +10,6 @@ CLICK_DECLS
 ClassifierAndGenerator::ClassifierAndGenerator() : _timerHELLO(this), _timerHELLO_TO(this), _timerUPDATE(this), _timerUPDATE_TO(this), _timerPrintTable(this), _timerDATA(this), r_table(0) {
     last_tran = 0;
     seq = 0;
-    _my_host = 0;
 }
 
 ClassifierAndGenerator::~ClassifierAndGenerator(){
@@ -39,7 +38,6 @@ int ClassifierAndGenerator::initialize(ErrorHandler *errh){
 
 int ClassifierAndGenerator::configure(Vector<String> &conf, ErrorHandler *errh) {
     if (cp_va_kparse(conf, this, errh,
-                  "MY_HOST", cpkP+cpkM, cpUnsigned, &_my_host,
                   "ROUTINGTABLE", cpkN, cpElement, &r_table,
                   cpEnd) < 0) {
     return -1;
@@ -57,7 +55,7 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
         struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
 
         format->type = 1;
-        format->source = _my_host;
+        format->source = r_table->get_my_host();
         format->sequence = seq;
 
         last_tran = 1;
@@ -68,7 +66,7 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
         memset(packet->data(),0,packet->length());
         struct PacketHELLO *format = (struct PacketHELLO*) packet->data();
         format->type = 1;
-        format->source = _my_host;
+        format->source = r_table->get_my_host();
         format->sequence = seq;
 
         last_tran = 1;
@@ -88,7 +86,7 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
             struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
 
             format->type = 2;
-            format->source = _my_host;
+            format->source = r_table->get_my_host();
             format->sequence = seq;
             format->length = r_table->get_entry_num();
             // click_chatter("Timeout Entry Num: %u", r_table->get_entry_num());
@@ -110,7 +108,7 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
             memset(packet->data(),0,packet->length());
             struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
             format->type = 2;
-            format->source = _my_host;
+            format->source = r_table->get_my_host();
             format->sequence = seq;
             format->length = r_table->get_entry_num();
 
@@ -125,7 +123,7 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
         }
     }
     else if( timer == &_timerPrintTable ) {
-        click_chatter("\n-----Host %u-----", _my_host);
+        click_chatter("\n-----Host %u-----", r_table->get_my_host());
         r_table->print_table();
         _timerPrintTable.schedule_after_sec(10);
     }
@@ -147,7 +145,7 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         memset(ack->data(),0,ack->length());
         struct PacketACK *format = (struct PacketACK*) ack->data();
         format->type = 3;
-        format->source = _my_host;
+        format->source = r_table->get_my_host();
         format->sequence = header4->sequence;
         format->destination = header4->source;
         output(1).push(ack);
@@ -162,7 +160,7 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         memset(ack->data(),0,ack->length());
         struct PacketACK *format1 = (struct PacketACK*) ack->data();
         format1->type = 3;
-        format1->source = _my_host;
+        format1->source = r_table->get_my_host();
         format1->sequence = header1->sequence;
         format1->destination = header1->source;
         output(1).push(ack);
@@ -181,12 +179,12 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         memset(ack->data(),0,ack->length());
         struct PacketACK *format = (struct PacketACK*) ack->data();
         format->type = 3;
-        format->source = _my_host;
+        format->source = r_table->get_my_host();
         format->sequence = header2->sequence;
         format->destination = header2->source;
         r_table->setPort(header2->source, port);
         output(1).push(ack);
-        // click_chatter("---HOST %u---", _my_host);
+        // click_chatter("---HOST %u---", r_table->get_my_host());
         // click_chatter("After ACK Before Proc Length %u", header2->length);
         // packet->kill();
     }

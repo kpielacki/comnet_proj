@@ -58,6 +58,8 @@ class TableKN: public Element{
         const char *port_count() const  { return "0/0"; }
         const char *processing() const  { return PUSH; }
 
+        int configure(Vector<String> &conf, ErrorHandler *errh);
+
         void hello_update(uint16_t h_source);
         void adjust_size(int new_size);
         void update_entry(int entry, uint16_t dest, uint8_t cost, uint16_t next_hop);
@@ -72,11 +74,14 @@ class TableKN: public Element{
         void setPort(uint16_t addr, int port);
         int getPort(uint16_t addr);
 
+        uint16_t get_my_host();
     private:
         bool first_entry;
         int entry_num;
         routing_entry *routing_table;
         HashTable<int, int> ports_table;
+
+        uint16_t _my_host;
 };
 
 CLICK_ENDDECLS

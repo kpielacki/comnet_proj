@@ -27,7 +27,6 @@ int UpdateProcessing::initialize(ErrorHandler *errh){
 
 int UpdateProcessing::configure(Vector<String> &conf, ErrorHandler *errh) {
     if (cp_va_kparse(conf, this, errh,
-                  "MY_HOST", cpkP+cpkM, cpUnsigned, &_my_host,
                   "ROUTINGTABLE", cpkN, cpElement, &r_table,
                   cpEnd) < 0) {
     return -1;
@@ -75,7 +74,7 @@ void UpdateProcessing::push(int port, Packet *packet) {
             routing_entry* retrieved_table = r_table->get_all_entries();
 
             // do not add self to own table
-            if ( _my_host != update_packet->payload[r_entry].destination ) {
+            if ( r_table->get_my_host() != update_packet->payload[r_entry].destination ) {
                 for( entry=0; entry <= r_table->get_entry_num(); entry++ ){
                     found_entry = false;
                     // array to hold entry number of matching destinations in routing table
