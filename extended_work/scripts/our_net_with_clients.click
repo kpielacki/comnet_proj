@@ -5,7 +5,7 @@ require(library /home/comnetsii/elements/routerport.click);
 //			element@Device[Name]Number		No Name for Routers
 
 // ---Router 1---
-rt@1:: TableKN(MY_HOST 1001);
+rt@1:: TableKN(MY_HOST 1001, IF_SENDER false);
 
 pcg@1::ClassifierAndGenerator(ROUTINGTABLE rt@1);
 fw@1::Forwarding(ROUTINGTABLE rt@1);
@@ -14,7 +14,7 @@ uproc@1::UpdateProcessing(ROUTINGTABLE rt@1);
 sw@1::McSwitch(ROUTINGTABLE rt@1);
 
 // ---Router 2---
-rt@2:: TableKN(MY_HOST 1002);
+rt@2:: TableKN(MY_HOST 1002, IF_SENDER false);
 
 pcg@2::ClassifierAndGenerator(ROUTINGTABLE rt@2);
 fw@2::Forwarding(ROUTINGTABLE rt@2);
@@ -23,7 +23,7 @@ uproc@2::UpdateProcessing(ROUTINGTABLE rt@2);
 sw@2::McSwitch(ROUTINGTABLE rt@2);
 
 // ---Router 3---
-rt@3:: TableKN(MY_HOST 1003);
+rt@3:: TableKN(MY_HOST 1003, IF_SENDER false);
 
 pcg@3::ClassifierAndGenerator(ROUTINGTABLE rt@3);
 fw@3::Forwarding(ROUTINGTABLE rt@3);
@@ -32,7 +32,7 @@ uproc@3::UpdateProcessing(ROUTINGTABLE rt@3);
 sw@3::McSwitch(ROUTINGTABLE rt@3);
 
 // ---Router 4---
-rt@4:: TableKN(MY_HOST 1004);
+rt@4:: TableKN(MY_HOST 1004, IF_SENDER false);
 
 pcg@4::ClassifierAndGenerator(ROUTINGTABLE rt@4);
 fw@4::Forwarding(ROUTINGTABLE rt@4);
@@ -41,7 +41,7 @@ uproc@4::UpdateProcessing(ROUTINGTABLE rt@4);
 sw@4::McSwitch(ROUTINGTABLE rt@4);
 
 // ---Router 5---
-rt@5:: TableKN(MY_HOST 1005);
+rt@5:: TableKN(MY_HOST 1005, IF_SENDER false);
 
 pcg@5::ClassifierAndGenerator(ROUTINGTABLE rt@5);
 fw@5::Forwarding(ROUTINGTABLE rt@5);
@@ -50,7 +50,7 @@ uproc@5::UpdateProcessing(ROUTINGTABLE rt@5);
 sw@5::McSwitch(ROUTINGTABLE rt@5);
 
 // ---Router 6---
-rt@6:: TableKN(MY_HOST 1006);
+rt@6:: TableKN(MY_HOST 1006, IF_SENDER false);
 
 pcg@6::ClassifierAndGenerator(ROUTINGTABLE rt@6);
 fw@6::Forwarding(ROUTINGTABLE rt@6);
@@ -59,7 +59,7 @@ uproc@6::UpdateProcessing(ROUTINGTABLE rt@6);
 sw@6::McSwitch(ROUTINGTABLE rt@6);
 
 // ---Source ---
-rt@source:: TableKN(MY_HOST 601);
+rt@source:: TableKN(MY_HOST 601, IF_SENDER true);
 
 pcg@source::ClassifierAndGenerator(ROUTINGTABLE rt@source);
 fw@source::Forwarding(ROUTINGTABLE rt@source);
@@ -68,7 +68,7 @@ uproc@source::UpdateProcessing(ROUTINGTABLE rt@source);
 sw@source::McSwitch(ROUTINGTABLE rt@source);
 
 // ---Destination 1---
-rt@dest1:: TableKN(MY_HOST 60001);
+rt@dest1:: TableKN(MY_HOST 60001, IF_SENDER false);
 
 pcg@dest1::ClassifierAndGenerator(ROUTINGTABLE rt@dest1);
 fw@dest1::Forwarding(ROUTINGTABLE rt@dest1);
@@ -77,7 +77,7 @@ uproc@dest1::UpdateProcessing(ROUTINGTABLE rt@dest1);
 sw@dest1::McSwitch(ROUTINGTABLE rt@dest1);
 
 // ---Destination 2---
-rt@dest2:: TableKN(MY_HOST 60002);
+rt@dest2:: TableKN(MY_HOST 60002, IF_SENDER false);
 
 pcg@dest2::ClassifierAndGenerator(ROUTINGTABLE rt@dest2);
 fw@dest2::Forwarding(ROUTINGTABLE rt@dest2);
@@ -86,7 +86,7 @@ uproc@dest2::UpdateProcessing(ROUTINGTABLE rt@dest2);
 sw@dest2::McSwitch(ROUTINGTABLE rt@dest2);
 
 // ---Destination 3---
-rt@dest3:: TableKN(MY_HOST 60003);
+rt@dest3:: TableKN(MY_HOST 60003, IF_SENDER false);
 
 pcg@dest3::ClassifierAndGenerator(ROUTINGTABLE rt@dest3);
 fw@dest3::Forwarding(ROUTINGTABLE rt@dest3);

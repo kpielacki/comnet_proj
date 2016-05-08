@@ -32,8 +32,7 @@ int ClassifierAndGenerator::initialize(ErrorHandler *errh){
     _timerPrintTable.schedule_after_sec(10);
 
     _timerDATA.initialize(this);
-    _timerDATA.schedule_now();
-
+    _timerDATA.schedule_after_sec(5);
     return 0;
 }
 
@@ -123,8 +122,27 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
             _timerUPDATE_TO.schedule_after_sec(1);
         }
     }
+    else if( timer == &_timerDATA and r_table->get_if_sender() ) {
+        click_chatter("Host %u is sending a data packet", r_table->get_my_host());
+        WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketDATA), 0);
+        memset(packet->data(),0,sizeof(struct PacketDATA));
+        struct PacketDATA *format = (struct PacketDATA*) packet->data();
+        format->type = 4;
+        format->source = r_table->get_my_host();
+        format->sequence = seq;
+        format->k = 3;
+        format->destination1 = 60001;
+        format->destination1 = 60002;
+        format->destination1 = 60003;
+        format->length = 64;
+        // setting a payload to just some obviously noticable number
+        format->payload = 444444444444;
+
+        last_tran = 4;
+        output(2).push(packet);
+        _timerDATA.schedule_after_sec(5);
+    }
     else if( timer == &_timerPrintTable ) {
-        click_chatter("\n-----Host %u-----", r_table->get_my_host());
         r_table->print_table();
         _timerPrintTable.schedule_after_sec(10);
     }
@@ -149,7 +167,6 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         format->source = r_table->get_my_host();
         format->sequence = header4->sequence;
         format->destination = header4->source;
-        r_table->setPort(header4->source, port); //Add addr to ports table
         output(1).push(ack);
         output(2).push(packet);
         // packet->kill();
@@ -165,7 +182,6 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         format1->source = r_table->get_my_host();
         format1->sequence = header1->sequence;
         format1->destination = header1->source;
-        r_table->setPort(header1->source, port); //Add addr to ports table
         output(1).push(ack);
         // packet->kill();
     }
@@ -185,7 +201,7 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         format->source = r_table->get_my_host();
         format->sequence = header2->sequence;
         format->destination = header2->source;
-        r_table->setPort(header2->source, port); //Add addr to ports table
+        r_table->setPort(header2->source, port);
         output(1).push(ack);
         // click_chatter("---HOST %u---", r_table->get_my_host());
         // click_chatter("After ACK Before Proc Length %u", header2->length);

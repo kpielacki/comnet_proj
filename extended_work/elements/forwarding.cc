@@ -26,7 +26,10 @@ void Forwarding::push(Packet *packet){
     uint8_t pType = readPacket();
 
     //Find routing table entries
-    if (pType==4){
+    if ( pType == 0 ){
+        goto quit;
+    }
+    else if (pType==4){
         //Make array for possibleHops, set number of routes for each destination to 0
         for (int i = 0; i<num_dest; i++){
             possibleHops[i][4] = 0;
@@ -74,7 +77,13 @@ uint8_t Forwarding::readPacket(){
         d[2] = header->destination3;
 
         for (int i = 0; i<3; i++){
-            if (d[i] != 0){
+            if ( d[i] == r_table->get_my_host() ){
+                // packet was meant for me
+                click_chatter("Host %u has received the packet with data: %u", r_table->get_my_host(), header->payload);
+                pType = 0;
+                return pType;
+            }
+            else if (d[i] != 0){
                 dest[num_dest] = d[i];
                 num_dest++;
             }
