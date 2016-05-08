@@ -11,6 +11,7 @@ TableKN::TableKN(){
     first_entry = true;
     entry_num = 0;
     _my_host = 0;
+    _sender = false;
     //static routing_entry *routing_table = new routing_entry[0];
 }
 
@@ -21,6 +22,7 @@ TableKN::~TableKN(){
 int TableKN::configure(Vector<String> &conf, ErrorHandler *errh) {
     if (cp_va_kparse(conf, this, errh,
                   "MY_HOST", cpkP+cpkM, cpUnsigned, &_my_host,
+                  "IF_SENDER", cpkP+cpkM, cpBool, &_sender,
                   cpEnd) < 0) {
     return -1;
   }
@@ -53,6 +55,10 @@ int TableKN::get_entry_num(){
 
 bool TableKN::get_if_first_entry(){
     return first_entry;
+}
+
+bool TableKN::get_if_sender(){
+    return _sender;
 }
 
 routing_entry *TableKN::get_all_entries(){
@@ -114,14 +120,14 @@ void TableKN::print_table(){
     int entry;
 
     if ( !first_entry ) {
-        click_chatter("-----Routing Table-----");
+        click_chatter("-------------Routing Table For Host %u-------------", _my_host);
         for( entry=0; entry <= entry_num; entry++ ){
             click_chatter("Entry: %u, Destination: %u, Cost: %u, Next Hop: %u", entry, routing_table[entry].destination, routing_table[entry].cost, routing_table[entry].next_hop);
         }
         click_chatter("\n");
     }
     else {
-        click_chatter("-----Routing Table-----");
+        click_chatter("-------------Routing Table-------------");
         click_chatter("Empty\n");
     }
 }

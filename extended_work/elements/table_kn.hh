@@ -75,6 +75,7 @@ class TableKN: public Element{
         int getPort(uint16_t addr);
 
         uint16_t get_my_host();
+        bool get_if_sender();
     private:
         bool first_entry;
         int entry_num;
@@ -82,6 +83,7 @@ class TableKN: public Element{
         HashTable<int, int> ports_table;
 
         uint16_t _my_host;
+        bool _sender;
 };
 
 CLICK_ENDDECLS
