@@ -3,7 +3,6 @@
 
 #include <click/element.hh>
 #include <click/timer.hh>
-// #include "proj_packets.hh"
 #include "table_kn.hh"
 
 CLICK_DECLS
@@ -22,7 +21,6 @@ class UpdateProcessing : public Element {
 
     private:
         int seq;
-        uint16_t _my_host;
         TableKN *r_table;
 };
 
