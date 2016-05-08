@@ -1,0 +1,5 @@
+Run this command get MAC addresses from ifconfig and set to BASH variables:
+v1_mac="$(ifconfig | grep 'veth1 ' -C 0 | cut -d' ' -f10)"; v2_mac="$(ifconfig | grep 'veth2 ' -C 0 | cut -d' ' -f10)"; v3_mac="$(ifconfig | grep 'veth3 ' -C 0 | cut -d' ' -f10)"; v4_mac="$(ifconfig | grep 'veth4 ' -C 0 | cut -d' ' -f10)"; v5_mac="$(ifconfig | grep 'veth5 ' -C 0 | cut -d' ' -f10)"; v6_mac="$(ifconfig | grep 'veth6 ' -C 0 | cut -d' ' -f10)"; v7_mac="$(ifconfig | grep 'veth7 ' -C 0 | cut -d' ' -f10)"; v8_mac="$(ifconfig | grep 'veth8 ' -C 0 | cut -d' ' -f10)"; v9_mac="$(ifconfig | grep 'veth9 ' -C 0 | cut -d' ' -f10)"; v10_mac="$(ifconfig | grep 'veth10 ' -C 0 | cut -d' ' -f9)";
+
+Pass variables when executed click script:
+sudo ~/click/userlevel/click test_net_4.click v1_mac=$v1_mac v2_mac=$v2_mac v3_mac=$v3_mac
