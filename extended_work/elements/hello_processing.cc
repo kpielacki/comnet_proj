@@ -38,7 +38,7 @@ void HelloProcessing::push(int port, Packet *packet) {
         r_table->hello_update(hello_packet->source);
     }
 
-    r_table->print_table();
+    // r_table->print_table();
     packet->kill();
 }
 

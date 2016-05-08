@@ -99,11 +99,17 @@ void TableKN::remove_table_entries(int remove_entries[], int remove_cnt){
 void TableKN::print_table(){
     int entry;
 
-    click_chatter("-----Routing Table-----");
-    for( entry=0; entry <= entry_num; entry++ ){
-        click_chatter("Entry: %u, Destination: %u, Cost: %u, Next Hop: %u", entry, routing_table[entry].destination, routing_table[entry].cost, routing_table[entry].next_hop);
+    if ( !first_entry ) {
+        click_chatter("-----Routing Table-----");
+        for( entry=0; entry <= entry_num; entry++ ){
+            click_chatter("Entry: %u, Destination: %u, Cost: %u, Next Hop: %u", entry, routing_table[entry].destination, routing_table[entry].cost, routing_table[entry].next_hop);
+        }
+        click_chatter("\n");
     }
-    click_chatter("\n");
+    else {
+        click_chatter("-----Routing Table-----");
+        click_chatter("Empty\n");
+    }
 }
 
 void TableKN::hello_update(uint16_t h_source){

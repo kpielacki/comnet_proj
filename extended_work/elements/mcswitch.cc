@@ -31,7 +31,7 @@ void McSwitch::push(int port, Packet *packet) {
 	//If HELLO or UPDATE is received on port 0
 	if (port == 0){
 		for(int i = 0; i < noutputs(); i++){
-		output(i).push(packet->clone());
+			output(i).push(packet->clone());
 		}
 	}
 	else if (port == 1 || port == 2){

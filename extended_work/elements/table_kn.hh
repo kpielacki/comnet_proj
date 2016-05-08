@@ -27,7 +27,7 @@ struct PacketUPDATE{
      uint16_t source;
      uint8_t sequence;
      uint16_t length;
-     routing_entry payload[];
+     routing_entry payload[100];
 };
 
 struct PacketACK{

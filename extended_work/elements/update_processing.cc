@@ -26,8 +26,13 @@ int UpdateProcessing::initialize(ErrorHandler *errh){
 }
 
 int UpdateProcessing::configure(Vector<String> &conf, ErrorHandler *errh) {
-    if (cp_va_kparse(conf, this, errh, "ROUTINGTABLE", cpkN, cpElement, &r_table, cpEnd) < 0) return -1;
-    return 0;
+    if (cp_va_kparse(conf, this, errh,
+                  "MY_HOST", cpkP+cpkM, cpUnsigned, &_my_host,
+                  "ROUTINGTABLE", cpkN, cpElement, &r_table,
+                  cpEnd) < 0) {
+    return -1;
+  }
+return 0;
 }
 
 void UpdateProcessing::push(int port, Packet *packet) {
@@ -44,13 +49,9 @@ void UpdateProcessing::push(int port, Packet *packet) {
         //memcpy( pay_read, &update_packet->payload, update_packet->length * sizeof(routing_entry) );
 
         int r_entry;
-        click_chatter("Received UPDATE Packet Length: %u", update_packet->length);
-        click_chatter("Received UPDATE Packet Source: %u", update_packet->source);
-        click_chatter("\n\n");
-
 
         // interate through all entries in received routing table
-        for ( r_entry = 0; r_entry < update_packet->length; r_entry++ ) {
+        for ( r_entry = 0; r_entry <= update_packet->length; r_entry++ ) {
 
             // discard incoming entries if already in table
             bool same_entry;
@@ -73,60 +74,63 @@ void UpdateProcessing::push(int port, Packet *packet) {
             // retrieve routing table through each iteration since it will be updated each iteration
             routing_entry* retrieved_table = r_table->get_all_entries();
 
-            for( entry=0; entry <= r_table->get_entry_num(); entry++ ){
-                found_entry = false;
-                // array to hold entry number of matching destinations in routing table
-                // int matching_dest_entries[2] = new int[2];  // there should never be more than 3 of the same entry in a table
-                equal_hop_count = 0;
-                // better_hop_count = 0;
+            // do not add self to own table
+            if ( _my_host != update_packet->payload[r_entry].destination ) {
+                for( entry=0; entry <= r_table->get_entry_num(); entry++ ){
+                    found_entry = false;
+                    // array to hold entry number of matching destinations in routing table
+                    // int matching_dest_entries[2] = new int[2];  // there should never be more than 3 of the same entry in a table
+                    equal_hop_count = 0;
+                    // better_hop_count = 0;
 
-                if ( !r_table->get_if_first_entry() ) {
-                    if ( update_packet->payload[r_entry].destination == retrieved_table[entry].destination ) {
-                        // interate through all current entries
-                        found_entry = true;
-                        if ( update_packet->payload[r_entry].cost + 1 < retrieved_table[entry].cost ) {
-                            // only overwrite better entry once, all others remove
-                            if ( better_hop_count < 1 ) {
-                                overwrite_entry = entry;
-                                better_hop_count++;
-                                found_entry = true;
+                    if ( !r_table->get_if_first_entry() ) {
+                        if ( update_packet->payload[r_entry].destination == retrieved_table[entry].destination ) {
+                            // interate through all current entries
+                            found_entry = true;
+                            if ( update_packet->payload[r_entry].cost + 1 < retrieved_table[entry].cost ) {
+                                // only overwrite better entry once, all others remove
+                                if ( better_hop_count < 1 ) {
+                                    overwrite_entry = entry;
+                                    better_hop_count++;
+                                    found_entry = true;
+                                }
+                                else {
+                                    del_entries[better_hop_count - 1] = entry;
+                                    better_hop_count++;
+                                }
+                            }
+                            else if ( update_packet->payload[r_entry].cost + 1 == retrieved_table[entry].cost ) {
+                                // matching_dest_entries[equal_hop_count] = entry;
+                                equal_hop_count++;
+                                if ( update_packet->source == retrieved_table[entry].next_hop ) {
+                                    same_entry = true;
+                                }
                             }
                             else {
-                                del_entries[better_hop_count - 1] = entry;
-                                better_hop_count++;
+                                discard_entry = true;
                             }
-                        }
-                        else if ( update_packet->payload[r_entry].cost + 1 == retrieved_table[entry].cost ) {
-                            // matching_dest_entries[equal_hop_count] = entry;
-                            equal_hop_count++;
-                            if ( update_packet->source == retrieved_table[entry].next_hop ) {
-                                same_entry = true;
-                            }
-                        }
-                        else {
-                            discard_entry = true;
                         }
                     }
                 }
-            }
 
-            // add equal entry if room available
-            if ( !same_entry and equal_hop_count > 0 and equal_hop_count < 3 ) {
-                r_table->add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
-            }
-
-            if ( better_hop_count > 0 ) {
-                r_table->update_entry(overwrite_entry, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
-
-                // remove alternative routes if exists
-                if ( better_hop_count > 1) {
-                    r_table->remove_table_entries(del_entries, better_hop_count - 1);
+                // add equal entry if room available
+                if ( !same_entry and equal_hop_count > 0 and equal_hop_count < 3 ) {
+                    r_table->add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
                 }
-            }
-            // add entry to routing table if entry was not found
-            if ( !found_entry and !same_entry and better_hop_count <= 0 and !discard_entry ){
-                r_table->add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
-                found_entry = false;
+
+                if ( better_hop_count > 0 ) {
+                    r_table->update_entry(overwrite_entry, update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
+
+                    // remove alternative routes if exists
+                    if ( better_hop_count > 1) {
+                        r_table->remove_table_entries(del_entries, better_hop_count - 1);
+                    }
+                }
+                // add entry to routing table if entry was not found
+                if ( !found_entry and !same_entry and better_hop_count <= 0 and !discard_entry ){
+                    r_table->add_new_entry(update_packet->payload[r_entry].destination, update_packet->payload[r_entry].cost + 1, update_packet->source);
+                    found_entry = false;
+                }
             }
         }
 

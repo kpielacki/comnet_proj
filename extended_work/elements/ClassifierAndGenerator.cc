@@ -73,7 +73,7 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
 
         last_tran = 1;
         output(0).push(packet);
-        _timerHELLO.schedule_after_sec(5);
+        _timerHELLO_TO.schedule_after_sec(1);
     }
     else if ( timer == &_timerUPDATE_TO ) {
         if ( r_table->get_if_first_entry() ) {
@@ -91,14 +91,14 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
             format->source = _my_host;
             format->sequence = seq;
             format->length = r_table->get_entry_num();
-            click_chatter("Timeout Entry Num: %u", r_table->get_entry_num());
+            // click_chatter("Timeout Entry Num: %u", r_table->get_entry_num());
 
 
-            memcpy(format->payload, r_table->get_all_entries(), format->length*sizeof(routing_entry));
+            memcpy(format->payload, r_table->get_all_entries(), (format->length + 1)*sizeof(routing_entry));
 
             last_tran = 2;
             output(0).push(packet);
-            _timerUPDATE.schedule_after_sec(5);
+            _timerUPDATE_TO.schedule_after_sec(1);
         }
     }
     else if( timer == &_timerUPDATE ) {
@@ -106,7 +106,7 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
             _timerUPDATE.schedule_after_sec(5);
         }
         else {
-            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketHELLO), 0);
+            WritablePacket *packet = Packet::make(14,0,sizeof(struct PacketUPDATE), 0);
             memset(packet->data(),0,packet->length());
             struct PacketUPDATE *format = (struct PacketUPDATE*) packet->data();
             format->type = 2;
@@ -114,17 +114,14 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
             format->sequence = seq;
             format->length = r_table->get_entry_num();
 
-            click_chatter("Normal Entry Num: %u", format->length);
-
-            memcpy(format->payload, r_table->get_all_entries(), format->length*sizeof(routing_entry));
+            memcpy(format->payload, r_table->get_all_entries(), (r_table->get_entry_num() + 1)*sizeof(routing_entry));
 
             struct PacketUPDATE *format2 = (struct PacketUPDATE*) packet->data();
-            click_chatter("Sending After Click Packet Creation Entry Num: %u", format2->length);
-
+            // click_chatter("Sending After Click Packet Creation Entry Num: %u", format2->length);
 
             last_tran = 2;
             output(0).push(packet);
-            _timerUPDATE.schedule_after_sec(5);
+            _timerUPDATE_TO.schedule_after_sec(1);
         }
     }
     else if( timer == &_timerPrintTable ) {
@@ -140,76 +137,76 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
 void ClassifierAndGenerator::push(int port, Packet *packet) {
 
     assert(packet);
-    struct PacketType *header = (struct PacketType *)packet->data();
+    struct PacketType *header = (struct PacketType *)packet->clone()->data();
 
     // Read type, send ACK, and send to next stage
     if ( header->type == 4 ){
-        // // Handle Data
-        // struct PacketDATA *header4 = (struct PacketDATA *)packet->data();
-        // WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
-        // memset(ack->data(),0,ack->length());
-        // struct PacketACK *format = (struct PacketACK*) ack->data();
-        // format->type = 3;
-        // format->source = _my_host;
-        // format->sequence = header4->sequence;
-        // format->destination = header4->source;
-        // output(1).push(ack);
-        // output(2).push(packet);
+        // Handle Data
+        struct PacketDATA *header4 = (struct PacketDATA *)packet->clone()->data();
+        WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
+        memset(ack->data(),0,ack->length());
+        struct PacketACK *format = (struct PacketACK*) ack->data();
+        format->type = 3;
+        format->source = _my_host;
+        format->sequence = header4->sequence;
+        format->destination = header4->source;
+        output(1).push(ack);
+        output(2).push(packet);
         // packet->kill();
     }
     else if ( header->type == 1 ){
-        // // Handle HELLO
-        // struct PacketHELLO *header1 = (struct PacketHELLO *)packet->data();
-        // WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
-        // memset(ack->data(),0,ack->length());
-        // struct PacketACK *format = (struct PacketACK*) ack->data();
-        // format->type = 3;
-        // format->source = _my_host;
-        // format->sequence = header1->sequence;
-        // format->destination = header1->source;
-        // output(1).push(ack);
-        // output(3).push(packet);
+        // Handle HELLO
+        output(3).push(packet->clone());
+        struct PacketHELLO *header1 = (struct PacketHELLO *)packet->data();
+        WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
+        memset(ack->data(),0,ack->length());
+        struct PacketACK *format1 = (struct PacketACK*) ack->data();
+        format1->type = 3;
+        format1->source = _my_host;
+        format1->sequence = header1->sequence;
+        format1->destination = header1->source;
+        output(1).push(ack);
         // packet->kill();
     }
     else if ( header->type == 2 ){
+        struct PacketUPDATE *header2 = (struct PacketUPDATE *)packet->clone()->data();
         // Handle UPDATE
-        struct PacketUPDATE *header2 = (struct PacketUPDATE *)packet->data();
-        click_chatter("After Creation Type %u", header2->type);
-        click_chatter("After Creation Source %u", header2->source);
-        click_chatter("After Creation Seq %u", header2->sequence);
-        click_chatter("After Creation Length %u", header2->length);
+        output(4).push(packet->clone());
+        // click_chatter("After Creation Type %u", header2->type);
+        // click_chatter("After Creation Source %u", header2->source);
+        // click_chatter("After Creation Seq %u", header2->sequence);
+        // click_chatter("After Creation Length %u", header2->length);
 
-
-        // WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
-        // memset(ack->data(),0,ack->length());
-        // struct PacketACK *format = (struct PacketACK*) ack->data();
-        // format->type = 3;
-        // format->source = _my_host;
-        // format->sequence = header2->sequence;
-        // format->destination = header2->source;
-        // output(1).push(ack);
-        click_chatter("---HOST %u---", _my_host);
-        click_chatter("After ACK Before Proc Length %u", header2->length);
-        output(4).push(packet);
-        packet->kill();
+        WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
+        memset(ack->data(),0,ack->length());
+        struct PacketACK *format = (struct PacketACK*) ack->data();
+        format->type = 3;
+        format->source = _my_host;
+        format->sequence = header2->sequence;
+        format->destination = header2->source;
+        r_table->setPort(header2->source, port);
+        output(1).push(ack);
+        // click_chatter("---HOST %u---", _my_host);
+        // click_chatter("After ACK Before Proc Length %u", header2->length);
+        // packet->kill();
     }
     else if ( header->type == 3 ) {
         // Handle ACK
-        struct PacketACK *header3 = (struct PacketACK *)packet->data();
+        struct PacketACK *header3 = (struct PacketACK *)packet->clone()->data();
         if(header3->sequence == seq) {
             if ( last_tran == 1 ) {
                 _timerHELLO_TO.unschedule();
                 seq++;
-                _timerHELLO_TO.schedule_after_sec(5);
+                _timerHELLO.schedule_after_sec(5);
             }
             if ( last_tran == 2 ) {
                 _timerUPDATE_TO.unschedule();
                 seq++;
-                _timerUPDATE_TO.schedule_after_sec(5);
+                _timerUPDATE.schedule_after_sec(5);
             }
-            else {
-                packet->kill();
-            }
+            // else {
+            //     packet->kill();
+            // }
         }
         else {
             packet->kill();

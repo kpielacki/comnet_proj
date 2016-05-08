@@ -22,6 +22,7 @@ class UpdateProcessing : public Element {
 
     private:
         int seq;
+        uint16_t _my_host;
         TableKN *r_table;
 };
 
