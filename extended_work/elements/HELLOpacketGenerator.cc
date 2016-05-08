@@ -4,7 +4,8 @@
 #include <click/timer.hh>
 #include <click/packet.hh>
 #include "HELLOpacketGenerator.hh"
-#include "proj_packets.hh"
+// #include "proj_packets.hh"
+#include "table_kn.hh"
 
 CLICK_DECLS
 

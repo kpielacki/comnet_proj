@@ -35,7 +35,6 @@ void HelloProcessing::push(int port, Packet *packet) {
         packet->kill();
     }
     else {
-        click_chatter("INCOMING HOST: %u", hello_packet->source);
         r_table->hello_update(hello_packet->source);
     }
 

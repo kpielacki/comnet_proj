@@ -37,6 +37,10 @@ int TableKN::get_entry_num(){
     return entry_num;
 }
 
+bool TableKN::get_if_first_entry(){
+    return first_entry;
+}
+
 routing_entry *TableKN::get_all_entries(){
     return routing_table;
 }
@@ -95,7 +99,7 @@ void TableKN::remove_table_entries(int remove_entries[], int remove_cnt){
 void TableKN::print_table(){
     int entry;
 
-    click_chatter("\n-----Routing Table-----");
+    click_chatter("-----Routing Table-----");
     for( entry=0; entry <= entry_num; entry++ ){
         click_chatter("Entry: %u, Destination: %u, Cost: %u, Next Hop: %u", entry, routing_table[entry].destination, routing_table[entry].cost, routing_table[entry].next_hop);
     }

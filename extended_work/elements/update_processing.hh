@@ -1,5 +1,5 @@
-#ifndef CLICK_HelloProcessing_HH
-#define CLICK_HelloProcessing_HH
+#ifndef CLICK_UpdateProcessing_HH
+#define CLICK_UpdateProcessing_HH
 
 #include <click/element.hh>
 #include <click/timer.hh>
@@ -8,17 +8,17 @@
 
 CLICK_DECLS
 
-class HelloProcessing : public Element {
+class UpdateProcessing : public Element {
     public:
-        HelloProcessing();
-        ~HelloProcessing();
-        const char *class_name() const { return "HelloProcessing";}
+        UpdateProcessing();
+        ~UpdateProcessing();
+        const char *class_name() const { return "UpdateProcessing";}
         const char *port_count() const { return "1/0";}
         const char *processing() const { return PUSH; }
-
-        int initialize(ErrorHandler*);
         int configure(Vector<String> &conf, ErrorHandler *errh);
+
         void push(int port, Packet *packet);
+        int initialize(ErrorHandler*);
 
     private:
         int seq;

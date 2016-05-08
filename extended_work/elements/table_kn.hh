@@ -12,6 +12,43 @@ struct routing_entry{
     uint16_t next_hop;
 };
 
+struct PacketType{
+     uint8_t type;
+};
+
+struct PacketHELLO{
+     uint8_t type;
+     uint16_t source;
+     uint8_t sequence;
+};
+
+struct PacketUPDATE{
+     uint8_t type;
+     uint16_t source;
+     uint8_t sequence;
+     uint16_t length;
+     routing_entry payload[];
+};
+
+struct PacketACK{
+     uint8_t type;
+     uint16_t source;
+     uint8_t sequence;
+     uint16_t destination;
+};
+
+struct PacketDATA{
+     uint8_t type;
+     uint16_t source;
+     uint8_t sequence;
+     uint8_t k;
+     uint16_t destination1;
+     uint16_t destination2;
+     uint16_t destination3;
+     uint16_t length;
+     uint64_t payload;
+};
+
 class TableKN: public Element{
     public:
         TableKN();
@@ -28,6 +65,7 @@ class TableKN: public Element{
         void remove_table_entries(int remove_entries[], int remove_cnt);
 
         int get_entry_num();
+        bool get_if_first_entry();
         routing_entry *get_all_entries();
         void print_table();
 
