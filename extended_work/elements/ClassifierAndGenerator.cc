@@ -149,6 +149,7 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         format->source = r_table->get_my_host();
         format->sequence = header4->sequence;
         format->destination = header4->source;
+        r_table->setPort(header4->source, port); //Add addr to ports table
         output(1).push(ack);
         output(2).push(packet);
         // packet->kill();
@@ -164,6 +165,7 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         format1->source = r_table->get_my_host();
         format1->sequence = header1->sequence;
         format1->destination = header1->source;
+        r_table->setPort(header1->source, port); //Add addr to ports table
         output(1).push(ack);
         // packet->kill();
     }
@@ -183,7 +185,7 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         format->source = r_table->get_my_host();
         format->sequence = header2->sequence;
         format->destination = header2->source;
-        r_table->setPort(header2->source, port);
+        r_table->setPort(header2->source, port); //Add addr to ports table
         output(1).push(ack);
         // click_chatter("---HOST %u---", r_table->get_my_host());
         // click_chatter("After ACK Before Proc Length %u", header2->length);
