@@ -10,6 +10,7 @@ CLICK_DECLS
 ClassifierAndGenerator::ClassifierAndGenerator() : _timerHELLO(this), _timerHELLO_TO(this), _timerUPDATE(this), _timerUPDATE_TO(this), _timerPrintTable(this), _timerDATA(this), r_table(0) {
     last_tran = 0;
     seq = 0;
+    acks_left = ninputs();
 }
 
 ClassifierAndGenerator::~ClassifierAndGenerator(){
@@ -193,14 +194,22 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
         struct PacketACK *header3 = (struct PacketACK *)packet->clone()->data();
         if(header3->sequence == seq) {
             if ( last_tran == 1 ) {
-                _timerHELLO_TO.unschedule();
-                seq++;
-                _timerHELLO.schedule_after_sec(5);
+                acks_left--;
+                if (acks_left==0){
+                    _timerHELLO_TO.unschedule();
+                    seq++;
+                    _timerHELLO.schedule_after_sec(5);
+                    acks_left = ninputs();
+                }
             }
             if ( last_tran == 2 ) {
-                _timerUPDATE_TO.unschedule();
-                seq++;
-                _timerUPDATE.schedule_after_sec(5);
+                acks_left--;
+                if (acks_left==0){                
+                    _timerUPDATE_TO.unschedule();
+                    seq++;
+                    _timerUPDATE.schedule_after_sec(5);
+                    acks_left = ninputs();
+                }
             }
             // else {
             //     packet->kill();
