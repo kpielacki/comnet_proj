@@ -34,7 +34,14 @@ void McSwitch::push(int port, Packet *packet) {
 			output(i).push(packet->clone());
 		}
 	}
-	else if (port == 1 || port == 2){
+	//Received ACK
+	else if (port == 1){
+		struct PacketACK *header1 = (struct PacketACK *)packet->data();
+		int next_port = r_table->getPort(header1->destination);
+		output(next_port).push(packet);
+	}
+	//Received DATA
+	else if (port == 2){
 		int anno = PAINT_ANNO_OFFSET;
 		int next_port = r_table->getPort(packet->anno_u16(anno));
 
