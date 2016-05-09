@@ -116,7 +116,6 @@ uint8_t Forwarding::readPacket(){
 
 
 void Forwarding::chooseKdest(){
-    click_chatter("Forward Element - Beginning Forwarding Algorithm");
     if (k_val==3){
         findNextHop();
     }
