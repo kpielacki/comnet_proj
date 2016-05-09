@@ -1,8 +1,10 @@
-#ifndef CLICK_FORWARDING_HH
-#define CLICK_FORWARDING_HH
+#ifndef CLICK_Forwarding_HH
+#define CLICK_Forwarding_HH
 #include <click/element.hh>
 #include <click/timer.hh>
 #include "table_kn.hh"
+
+CLICK_DECLS
 
 class Forwarding : public Element {
     public:
@@ -13,8 +15,9 @@ class Forwarding : public Element {
         const char *port_count() const { return "1/1";}
         const char *processing() const { return PUSH; }
         int configure(Vector<String> &conf, ErrorHandler *errh);
+        int initialize(ErrorHandler*);
 
-        void push(Packet *packet);
+        void push(int port, Packet *packet);
         uint8_t readPacket(); //returns packet Type, stores all other packet information in class variables
         void chooseKdest();
         void findNextHop();
