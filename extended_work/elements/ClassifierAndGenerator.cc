@@ -32,7 +32,7 @@ int ClassifierAndGenerator::initialize(ErrorHandler *errh){
     _timerPrintTable.schedule_after_sec(10);
 
     _timerDATA.initialize(this);
-    _timerDATA.schedule_after_sec(5);
+    _timerDATA.schedule_after_sec(11);
     return 0;
 }
 
@@ -114,7 +114,7 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
 
             memcpy(format->payload, r_table->get_all_entries(), (r_table->get_entry_num() + 1)*sizeof(routing_entry));
 
-            struct PacketUPDATE *format2 = (struct PacketUPDATE*) packet->data();
+            //struct PacketUPDATE *format2 = (struct PacketUPDATE*) packet->data();
             // click_chatter("Sending After Click Packet Creation Entry Num: %u", format2->length);
 
             last_tran = 2;
@@ -132,15 +132,15 @@ void ClassifierAndGenerator::run_timer(Timer *timer) {
         format->sequence = seq;
         format->k = 3;
         format->destination1 = 60001;
-        format->destination1 = 60002;
-        format->destination1 = 60003;
+        format->destination2 = 60002;
+        format->destination3 = 60003;
         format->length = 64;
         // setting a payload to just some obviously noticable number
         format->payload = 444444444444;
-
+        click_chatter("Payload of data packet %u",  format->payload);
         last_tran = 4;
         output(2).push(packet);
-        _timerDATA.schedule_after_sec(5);
+        _timerDATA.schedule_after_sec(11);
     }
     else if( timer == &_timerPrintTable ) {
         r_table->print_table();
@@ -159,6 +159,7 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
     // Read type, send ACK, and send to next stage
     if ( header->type == 4 ){
         // Handle Data
+        click_chatter("%u Received Data Packet", r_table->get_my_host());
         struct PacketDATA *header4 = (struct PacketDATA *)packet->clone()->data();
         WritablePacket *ack = Packet::make(14,0,sizeof(struct PacketACK), 0);
         memset(ack->data(),0,ack->length());
@@ -229,6 +230,7 @@ void ClassifierAndGenerator::push(int port, Packet *packet) {
                     acks_left = ninputs();
                 }
             }
+          
             // else {
             //     packet->kill();
             // }
